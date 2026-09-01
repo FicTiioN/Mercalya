@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: mercalya-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mercalya
+      POSTGRES_PASSWORD: mercalya
+      POSTGRES_DB: mercalya
+    ports:
+      - "5433:5432"
+    volumes:
+      - mercalya-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mercalya -d mercalya"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mercalya-postgres:

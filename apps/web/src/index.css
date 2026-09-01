@@ -1,0 +1,118 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --mc-teal: #087f73;
+    --mc-teal-dark: #066a61;
+    --mc-amber: #f4a629;
+    --mc-ink: #17232d;
+    --mc-bg: #f7f9fa;
+    --mc-surface: #ffffff;
+    --mc-surface-2: #f1f4f5;
+    --mc-line: #e3e8ea;
+    --mc-muted: #65747e;
+    --mc-success: #18a66a;
+    --mc-warning: #f5a623;
+    --mc-error: #e5484d;
+    --mc-info: #3979e9;
+  }
+
+  * {
+    border-color: theme('colors.line');
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-bg text-ink font-sans text-body antialiased;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display text-ink;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #d8dfe2;
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #c2cbd0;
+    background-clip: content-box;
+  }
+}
+
+@layer components {
+  .mc-focus {
+    @apply outline-none focus-visible:ring-2 focus-visible:ring-teal/30 focus-visible:border-teal;
+  }
+
+  .mc-card {
+    @apply rounded-xl border border-line bg-surface shadow-card;
+  }
+
+  .mc-input {
+    @apply mc-focus h-11 w-full rounded-md border border-line bg-surface px-3.5 text-body
+           text-ink placeholder:text-muted/70 transition-colors
+           disabled:cursor-not-allowed disabled:bg-surface-2 disabled:text-muted;
+  }
+
+  .mc-label {
+    @apply mb-1.5 block text-label font-medium text-ink;
+  }
+
+  .mc-helper {
+    @apply mt-1.5 block text-caption text-muted;
+  }
+
+  .mc-table-head {
+    @apply border-b border-line bg-surface-2/60 text-left text-[12.5px] font-medium text-muted;
+  }
+
+  .mc-skeleton {
+    @apply relative overflow-hidden rounded-md bg-surface-2;
+  }
+  .mc-skeleton::after {
+    content: '';
+    @apply absolute inset-0 -translate-x-full;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.65), transparent);
+    animation: shimmer 1.4s infinite;
+  }
+
+  @keyframes shimmer {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}

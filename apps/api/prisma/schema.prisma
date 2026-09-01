@@ -1,0 +1,750 @@
+// Schema do Mercalya.
+//
+// Duas regras estruturais valem para o arquivo inteiro:
+//
+// 1. `Empresa` é a raiz multi-tenant. Toda entidade de topo carrega
+//    `empresaId`, e todo índice único de negócio é composto com ele — duas
+//    empresas podem ter o mesmo EAN sem colidir.
+// 2. Dinheiro e quantidade são `Decimal`, nunca float. Preços e totais em
+//    2 casas; custos em 4, porque custo médio ponderado gera dízima; e
+//    quantidades em 3, porque kg e litro não são inteiros.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ------------------------------------------------------------------
+// Enums — o @map guarda no banco exatamente a string do contrato
+// ------------------------------------------------------------------
+
+enum PapelUsuario {
+  ADMINISTRADOR @map("administrador")
+
+  @@map("papel_usuario")
+}
+
+enum UnidadeMedida {
+  UN  @map("un")
+  KG  @map("kg")
+  G   @map("g")
+  L   @map("l")
+  ML  @map("ml")
+  CX  @map("cx")
+  PCT @map("pct")
+  FD  @map("fd")
+
+  @@map("unidade_medida")
+}
+
+enum StatusProduto {
+  ATIVO   @map("ativo")
+  INATIVO @map("inativo")
+
+  @@map("status_produto")
+}
+
+enum ControleValidade {
+  NAO_CONTROLAR @map("nao-controlar")
+  POR_LOTE      @map("por-lote")
+  OBRIGATORIO   @map("obrigatorio")
+
+  @@map("controle_validade")
+}
+
+enum StatusFornecedor {
+  ATIVO   @map("ativo")
+  INATIVO @map("inativo")
+
+  @@map("status_fornecedor")
+}
+
+enum StatusCompra {
+  RASCUNHO   @map("rascunho")
+  CONFIRMADA @map("confirmada")
+  CANCELADA  @map("cancelada")
+
+  @@map("status_compra")
+}
+
+enum FormaPagamento {
+  BOLETO   @map("boleto")
+  PIX      @map("pix")
+  DINHEIRO @map("dinheiro")
+  CARTAO   @map("cartao")
+  PRAZO    @map("prazo")
+
+  @@map("forma_pagamento")
+}
+
+enum TipoLocal {
+  CENTRAL @map("central")
+  LOJA    @map("loja")
+
+  @@map("tipo_local")
+}
+
+enum TipoMovimentacao {
+  ENTRADA
+  TRANSFERENCIA
+  VENDA
+  PERDA
+  AJUSTE
+  DEVOLUCAO
+
+  @@map("tipo_movimentacao")
+}
+
+enum StatusMovimentacao {
+  CONCLUIDA @map("concluida")
+  CANCELADA @map("cancelada")
+
+  @@map("status_movimentacao")
+}
+
+enum StatusAbastecimento {
+  CONCLUIDO @map("concluido")
+  CANCELADO @map("cancelado")
+
+  @@map("status_abastecimento")
+}
+
+enum MotivoPerda {
+  VENCIMENTO       @map("vencimento")
+  QUEBRA           @map("quebra")
+  AVARIA           @map("avaria")
+  ROUBO            @map("roubo")
+  ERRO_OPERACIONAL @map("erro-operacional")
+  OUTROS           @map("outros")
+
+  @@map("motivo_perda")
+}
+
+enum StatusVenda {
+  CONCLUIDA @map("concluida")
+  CANCELADA @map("cancelada")
+
+  @@map("status_venda")
+}
+
+enum FormaPagamentoVenda {
+  PIX            @map("pix")
+  DINHEIRO       @map("dinheiro")
+  CARTAO_DEBITO  @map("cartao-debito")
+  CARTAO_CREDITO @map("cartao-credito")
+
+  @@map("forma_pagamento_venda")
+}
+
+enum StatusPagamento {
+  APROVADO @map("aprovado")
+  PENDENTE @map("pendente")
+  RECUSADO @map("recusado")
+
+  @@map("status_pagamento")
+}
+
+// ------------------------------------------------------------------
+// Raiz multi-tenant
+// ------------------------------------------------------------------
+
+model Empresa {
+  id           String   @id @default(cuid())
+  nome         String
+  documento    String?  @unique
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  usuarios       Usuario[]
+  lojas          Loja[]
+  locais         LocalEstoque[]
+  categorias     Categoria[]
+  marcas         Marca[]
+  fornecedores   Fornecedor[]
+  produtos       Produto[]
+  compras        Compra[]
+  lotes          Lote[]
+  saldos         SaldoEstoque[]
+  movimentacoes  MovimentacaoEstoque[]
+  abastecimentos Abastecimento[]
+  perdas         PerdaEstoque[]
+  clientes       Cliente[]
+  vendas         Venda[]
+  sequencias     Sequencia[]
+
+  @@map("empresa")
+}
+
+/// Nesta fase existe só o administrador, mas `papel` já nasce como coluna:
+/// adicionar perfis depois vira INSERT de dado, não migração de schema.
+model Usuario {
+  id           String       @id @default(cuid())
+  empresaId    String       @map("empresa_id")
+  nome         String
+  email        String       @unique
+  senhaHash    String       @map("senha_hash")
+  papel        PapelUsuario @default(ADMINISTRADOR)
+  ativo        Boolean      @default(true)
+  criadoEm     DateTime     @default(now()) @map("criado_em")
+  atualizadoEm DateTime     @updatedAt @map("atualizado_em")
+
+  empresa           Empresa           @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  notificacoesLidas NotificacaoLida[]
+
+  @@index([empresaId])
+  @@map("usuario")
+}
+
+// ------------------------------------------------------------------
+// Lojas e locais de estoque
+// ------------------------------------------------------------------
+
+/// Uma empresa tem N lojas. O estoque central é único da empresa e abastece
+/// todas — central por loja fica para uma segunda fase.
+model Loja {
+  id           String   @id @default(cuid())
+  empresaId    String   @map("empresa_id")
+  nome         String
+  condominio   String   @default("")
+  ativa        Boolean  @default(true)
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  empresa       Empresa                   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  local         LocalEstoque?
+  configuracoes ConfiguracaoProdutoLoja[]
+  vendas        Venda[]
+
+  @@unique([empresaId, nome])
+  @@index([empresaId])
+  @@map("loja")
+}
+
+/// Onde a mercadoria fica fisicamente. `tipo = LOJA` aponta para a loja dona.
+///
+/// A loja não guarda `localId`: quem referencia é o local. Isso quebra o ciclo
+/// Loja <-> LocalEstoque que existia no modelo do frontend, onde cada lado
+/// apontava para o outro.
+model LocalEstoque {
+  id        String    @id @default(cuid())
+  empresaId String    @map("empresa_id")
+  nome      String
+  tipo      TipoLocal
+  descricao String    @default("")
+  lojaId    String?   @unique @map("loja_id")
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  loja    Loja?   @relation(fields: [lojaId], references: [id], onDelete: Cascade)
+
+  saldos                SaldoEstoque[]
+  perdas                PerdaEstoque[]
+  comprasDestino        Compra[]
+  movimentacoesOrigem   MovimentacaoEstoque[] @relation("movimentacao_origem")
+  movimentacoesDestino  MovimentacaoEstoque[] @relation("movimentacao_destino")
+  abastecimentosOrigem  Abastecimento[]       @relation("abastecimento_origem")
+  abastecimentosDestino Abastecimento[]       @relation("abastecimento_destino")
+
+  @@index([empresaId, tipo])
+  @@map("local_estoque")
+}
+
+// ------------------------------------------------------------------
+// Catálogo
+// ------------------------------------------------------------------
+
+model Categoria {
+  id        String @id @default(cuid())
+  empresaId String @map("empresa_id")
+  nome      String
+  cor       String @default("#087F73")
+  emoji     String @default("")
+
+  empresa      Empresa      @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  produtos     Produto[]
+  fornecedores Fornecedor[]
+
+  @@unique([empresaId, nome])
+  @@map("categoria")
+}
+
+model Marca {
+  id        String @id @default(cuid())
+  empresaId String @map("empresa_id")
+  nome      String
+
+  empresa  Empresa   @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  produtos Produto[]
+
+  @@unique([empresaId, nome])
+  @@map("marca")
+}
+
+/// Catálogo: o que o produto **é**. Nada aqui varia entre lojas — preço de
+/// venda e níveis de prateleira moram em ConfiguracaoProdutoLoja.
+///
+/// `ean` e `sku` são opcionais e únicos **quando preenchidos**: no Postgres
+/// vários NULL convivem no mesmo índice único, então produto sem código de
+/// barras não colide com outro.
+model Produto {
+  id                    String           @id @default(cuid())
+  empresaId             String           @map("empresa_id")
+  nome                  String
+  ean                   String?
+  sku                   String?
+  categoriaId           String           @map("categoria_id")
+  marcaId               String?          @map("marca_id")
+  unidade               UnidadeMedida    @default(UN)
+  conteudo              String           @default("")
+  /// Referência usada ao vincular o produto a uma loja nova.
+  precoSugerido         Decimal          @default(0) @map("preco_sugerido") @db.Decimal(12, 2)
+  /// Média ponderada das compras. NULL enquanto não houver entrada.
+  custoMedio            Decimal?         @map("custo_medio") @db.Decimal(14, 4)
+  /// Saldo no central que dispara nova compra ao fornecedor.
+  pontoCompra           Decimal          @default(0) @map("ponto_compra") @db.Decimal(14, 3)
+  estoqueMaximoCentral  Decimal          @default(0) @map("estoque_maximo_central") @db.Decimal(14, 3)
+  controleValidade      ControleValidade @default(NAO_CONTROLAR) @map("controle_validade")
+  validadePadraoDias    Int?             @map("validade_padrao_dias")
+  localizacaoPadrao     String           @default("") @map("localizacao_padrao")
+  fornecedorPrincipalId String?          @map("fornecedor_principal_id")
+  observacoes           String           @default("")
+  imagem                String           @default("")
+  status                StatusProduto    @default(ATIVO)
+  /// Nome + EAN + SKU sem acento e em minúsculas, mantido pelo serviço.
+  /// O ILIKE do Postgres não ignora diacríticos: sem esta coluna, "acucar"
+  /// deixaria de encontrar "Açúcar" — a busca regrediria em silêncio.
+  buscaTexto            String           @default("") @map("busca_texto")
+  ultimaVendaEm         DateTime?        @map("ultima_venda_em")
+  criadoEm              DateTime         @default(now()) @map("criado_em")
+  atualizadoEm          DateTime         @updatedAt @map("atualizado_em")
+
+  empresa             Empresa     @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  categoria           Categoria   @relation(fields: [categoriaId], references: [id], onDelete: Restrict)
+  marca               Marca?      @relation(fields: [marcaId], references: [id], onDelete: SetNull)
+  fornecedorPrincipal Fornecedor? @relation(fields: [fornecedorPrincipalId], references: [id], onDelete: SetNull)
+
+  configuracoes      ConfiguracaoProdutoLoja[]
+  itensCompra        ItemCompra[]
+  lotes              Lote[]
+  saldos             SaldoEstoque[]
+  movimentacoes      MovimentacaoEstoque[]
+  itensAbastecimento ItemAbastecimento[]
+  perdas             PerdaEstoque[]
+  itensVenda         ItemVenda[]
+
+  @@unique([empresaId, ean])
+  @@unique([empresaId, sku])
+  @@index([empresaId, status])
+  @@index([empresaId, categoriaId])
+  @@index([empresaId, buscaTexto])
+  @@map("produto")
+}
+
+/// Configuração comercial do produto **em uma loja**. É aqui que mora o preço:
+/// o mesmo produto pode custar valores diferentes em lojas diferentes.
+model ConfiguracaoProdutoLoja {
+  id            String   @id @default(cuid())
+  produtoId     String   @map("produto_id")
+  lojaId        String   @map("loja_id")
+  precoVenda    Decimal  @map("preco_venda") @db.Decimal(12, 2)
+  estoqueMinimo Decimal  @default(0) @map("estoque_minimo") @db.Decimal(14, 3)
+  estoqueIdeal  Decimal  @default(0) @map("estoque_ideal") @db.Decimal(14, 3)
+  /// Quando false, a loja não vende este produto.
+  ativo         Boolean  @default(true)
+  atualizadoEm  DateTime @updatedAt @map("atualizado_em")
+
+  produto Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  loja    Loja    @relation(fields: [lojaId], references: [id], onDelete: Cascade)
+
+  @@unique([produtoId, lojaId])
+  @@index([lojaId, ativo])
+  @@map("configuracao_produto_loja")
+}
+
+// ------------------------------------------------------------------
+// Fornecedores
+// ------------------------------------------------------------------
+
+model Fornecedor {
+  id                   String  @id @default(cuid())
+  empresaId            String  @map("empresa_id")
+  nome                 String
+  nomeFantasia         String  @default("") @map("nome_fantasia")
+  documento            String?
+  categoriaPrincipalId String? @map("categoria_principal_id")
+
+  contatoNome     String @default("") @map("contato_nome")
+  contatoCargo    String @default("") @map("contato_cargo")
+  contatoTelefone String @default("") @map("contato_telefone")
+  contatoWhatsapp String @default("") @map("contato_whatsapp")
+  contatoEmail    String @default("") @map("contato_email")
+
+  enderecoCep         String @default("") @map("endereco_cep")
+  enderecoLogradouro  String @default("") @map("endereco_logradouro")
+  enderecoNumero      String @default("") @map("endereco_numero")
+  enderecoComplemento String @default("") @map("endereco_complemento")
+  enderecoBairro      String @default("") @map("endereco_bairro")
+  enderecoCidade      String @default("") @map("endereco_cidade")
+  enderecoUf          String @default("") @map("endereco_uf")
+
+  prazoEntregaDias  Int     @default(0) @map("prazo_entrega_dias")
+  condicaoPagamento String  @default("") @map("condicao_pagamento")
+  descontoPadrao    Decimal @default(0) @map("desconto_padrao") @db.Decimal(5, 2)
+
+  observacoes  String           @default("")
+  status       StatusFornecedor @default(ATIVO)
+  /// Nome, fantasia, documento e contato sem acento — mesma razão da coluna
+  /// equivalente em Produto: o ILIKE do Postgres não ignora diacríticos.
+  buscaTexto   String           @default("") @map("busca_texto")
+  criadoEm     DateTime         @default(now()) @map("criado_em")
+  atualizadoEm DateTime         @updatedAt @map("atualizado_em")
+
+  empresa            Empresa    @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  categoriaPrincipal Categoria? @relation(fields: [categoriaPrincipalId], references: [id], onDelete: SetNull)
+
+  produtos Produto[]
+  compras  Compra[]
+
+  @@unique([empresaId, documento])
+  @@index([empresaId, status])
+  @@index([empresaId, buscaTexto])
+  @@map("fornecedor")
+}
+
+// ------------------------------------------------------------------
+// Compras
+// ------------------------------------------------------------------
+
+/// Confirmar a compra é a **única** entrada de estoque do sistema: cria lote,
+/// credita o saldo, recalcula o custo médio e grava a movimentação ENTRADA —
+/// tudo em uma transação só.
+model Compra {
+  id                String          @id @default(cuid())
+  empresaId         String          @map("empresa_id")
+  numero            String
+  fornecedorId      String          @map("fornecedor_id")
+  notaFiscal        String          @default("") @map("nota_fiscal")
+  dataEmissao       DateTime?       @map("data_emissao")
+  dataEntrada       DateTime?       @map("data_entrada")
+  condicaoPagamento String          @default("") @map("condicao_pagamento")
+  formaPagamento    FormaPagamento? @map("forma_pagamento")
+  dataVencimento    DateTime?       @map("data_vencimento")
+  observacoes       String          @default("")
+  frete             Decimal         @default(0) @db.Decimal(14, 2)
+  desconto          Decimal         @default(0) @db.Decimal(14, 2)
+  subtotal          Decimal         @default(0) @db.Decimal(14, 2)
+  total             Decimal         @default(0) @db.Decimal(14, 2)
+  localDestinoId    String          @map("local_destino_id")
+  status            StatusCompra    @default(RASCUNHO)
+  confirmadaEm      DateTime?       @map("confirmada_em")
+  criadoEm          DateTime        @default(now()) @map("criado_em")
+  atualizadoEm      DateTime        @updatedAt @map("atualizado_em")
+
+  empresa      Empresa      @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  fornecedor   Fornecedor   @relation(fields: [fornecedorId], references: [id], onDelete: Restrict)
+  localDestino LocalEstoque @relation(fields: [localDestinoId], references: [id], onDelete: Restrict)
+
+  itens ItemCompra[]
+  lotes Lote[]
+
+  @@unique([empresaId, numero])
+  @@index([empresaId, status])
+  @@index([empresaId, fornecedorId])
+  @@map("compra")
+}
+
+model ItemCompra {
+  id            String        @id @default(cuid())
+  compraId      String        @map("compra_id")
+  produtoId     String        @map("produto_id")
+  quantidade    Decimal       @db.Decimal(14, 3)
+  unidade       UnidadeMedida @default(UN)
+  custoUnitario Decimal       @map("custo_unitario") @db.Decimal(14, 4)
+  validade      DateTime?
+  lote          String        @default("")
+  total         Decimal       @db.Decimal(14, 2)
+
+  compra  Compra  @relation(fields: [compraId], references: [id], onDelete: Cascade)
+  produto Produto @relation(fields: [produtoId], references: [id], onDelete: Restrict)
+
+  @@index([compraId])
+  @@index([produtoId])
+  @@map("item_compra")
+}
+
+// ------------------------------------------------------------------
+// Estoque
+// ------------------------------------------------------------------
+
+model Lote {
+  id            String    @id @default(cuid())
+  empresaId     String    @map("empresa_id")
+  codigo        String
+  produtoId     String    @map("produto_id")
+  compraId      String?   @map("compra_id")
+  custoUnitario Decimal   @map("custo_unitario") @db.Decimal(14, 4)
+  validade      DateTime?
+  criadoEm      DateTime  @default(now()) @map("criado_em")
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  produto Produto @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  compra  Compra? @relation(fields: [compraId], references: [id], onDelete: SetNull)
+
+  saldos             SaldoEstoque[]
+  movimentacoes      MovimentacaoEstoque[]
+  itensAbastecimento ItemAbastecimento[]
+  perdas             PerdaEstoque[]
+
+  @@index([empresaId, produtoId])
+  /// Ordena o consumo FEFO: vence antes, sai antes.
+  @@index([produtoId, validade])
+  @@map("lote")
+}
+
+/// Unidade atômica do estoque: quanto de um produto/lote existe em um local.
+model SaldoEstoque {
+  id           String   @id @default(cuid())
+  empresaId    String   @map("empresa_id")
+  produtoId    String   @map("produto_id")
+  loteId       String?  @map("lote_id")
+  localId      String   @map("local_id")
+  quantidade   Decimal  @default(0) @db.Decimal(14, 3)
+  reservado    Decimal  @default(0) @db.Decimal(14, 3)
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  empresa Empresa      @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  produto Produto      @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  lote    Lote?        @relation(fields: [loteId], references: [id], onDelete: Cascade)
+  local   LocalEstoque @relation(fields: [localId], references: [id], onDelete: Cascade)
+
+  @@unique([localId, produtoId, loteId])
+  @@index([empresaId, produtoId])
+  @@index([localId])
+  @@map("saldo_estoque")
+}
+
+/// Histórico imutável. Os campos `*Label` são texto congelado no momento do
+/// fato: renomear a loja depois não reescreve o passado.
+model MovimentacaoEstoque {
+  id            String             @id @default(cuid())
+  empresaId     String             @map("empresa_id")
+  tipo          TipoMovimentacao
+  produtoId     String             @map("produto_id")
+  loteId        String?            @map("lote_id")
+  quantidade    Decimal            @db.Decimal(14, 3)
+  origemId      String?            @map("origem_id")
+  origemLabel   String             @default("") @map("origem_label")
+  destinoId     String?            @map("destino_id")
+  destinoLabel  String             @default("") @map("destino_label")
+  usuario       String             @default("")
+  observacao    String             @default("")
+  documento     String             @default("")
+  custoUnitario Decimal?           @map("custo_unitario") @db.Decimal(14, 4)
+  valorTotal    Decimal?           @map("valor_total") @db.Decimal(14, 2)
+  data          DateTime           @default(now())
+  status        StatusMovimentacao @default(CONCLUIDA)
+
+  empresa Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  produto Produto       @relation(fields: [produtoId], references: [id], onDelete: Cascade)
+  lote    Lote?         @relation(fields: [loteId], references: [id], onDelete: SetNull)
+  origem  LocalEstoque? @relation("movimentacao_origem", fields: [origemId], references: [id], onDelete: SetNull)
+  destino LocalEstoque? @relation("movimentacao_destino", fields: [destinoId], references: [id], onDelete: SetNull)
+
+  @@index([empresaId, data])
+  @@index([empresaId, tipo])
+  @@index([produtoId, data])
+  @@map("movimentacao_estoque")
+}
+
+/// Abastecimento é **transferência**: o central diminui, a loja aumenta e o
+/// total da empresa não muda.
+model Abastecimento {
+  id            String              @id @default(cuid())
+  empresaId     String              @map("empresa_id")
+  numero        String
+  origemId      String              @map("origem_id")
+  destinoId     String              @map("destino_id")
+  totalProdutos Int                 @default(0) @map("total_produtos")
+  totalItens    Decimal             @default(0) @map("total_itens") @db.Decimal(14, 3)
+  status        StatusAbastecimento @default(CONCLUIDO)
+  usuario       String              @default("")
+  data          DateTime            @default(now())
+
+  empresa Empresa      @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  origem  LocalEstoque @relation("abastecimento_origem", fields: [origemId], references: [id], onDelete: Restrict)
+  destino LocalEstoque @relation("abastecimento_destino", fields: [destinoId], references: [id], onDelete: Restrict)
+
+  itens ItemAbastecimento[]
+
+  @@unique([empresaId, numero])
+  @@index([empresaId, data])
+  @@map("abastecimento")
+}
+
+model ItemAbastecimento {
+  id              String  @id @default(cuid())
+  abastecimentoId String  @map("abastecimento_id")
+  produtoId       String  @map("produto_id")
+  loteId          String? @map("lote_id")
+  quantidade      Decimal @db.Decimal(14, 3)
+
+  abastecimento Abastecimento @relation(fields: [abastecimentoId], references: [id], onDelete: Cascade)
+  produto       Produto       @relation(fields: [produtoId], references: [id], onDelete: Restrict)
+  lote          Lote?         @relation(fields: [loteId], references: [id], onDelete: SetNull)
+
+  @@index([abastecimentoId])
+  @@map("item_abastecimento")
+}
+
+model PerdaEstoque {
+  id            String      @id @default(cuid())
+  empresaId     String      @map("empresa_id")
+  produtoId     String      @map("produto_id")
+  loteId        String?     @map("lote_id")
+  localId       String      @map("local_id")
+  motivo        MotivoPerda
+  quantidade    Decimal     @db.Decimal(14, 3)
+  valor         Decimal     @default(0) @db.Decimal(14, 2)
+  observacao    String      @default("")
+  registradoPor String      @default("") @map("registrado_por")
+  data          DateTime    @default(now())
+
+  empresa Empresa      @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  produto Produto      @relation(fields: [produtoId], references: [id], onDelete: Restrict)
+  lote    Lote?        @relation(fields: [loteId], references: [id], onDelete: SetNull)
+  local   LocalEstoque @relation(fields: [localId], references: [id], onDelete: Restrict)
+
+  @@index([empresaId, data])
+  @@map("perda_estoque")
+}
+
+// ------------------------------------------------------------------
+// Clientes e vendas
+// ------------------------------------------------------------------
+
+/// Nenhum campo é obrigatório — venda sem cliente é o caso normal. Mas
+/// documento e telefone são únicos **quando preenchidos**, para permitir
+/// deduplicar depois sem migração dolorosa.
+model Cliente {
+  id           String   @id @default(cuid())
+  empresaId    String   @map("empresa_id")
+  nome         String?
+  documento    String?
+  telefone     String?
+  email        String?
+  observacoes  String   @default("")
+  criadoEm     DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  vendas  Venda[]
+
+  @@unique([empresaId, documento])
+  @@unique([empresaId, telefone])
+  @@index([empresaId])
+  @@map("cliente")
+}
+
+/// A venda debita o estoque **da loja** e grava movimentação VENDA.
+/// Cancelar devolve o estoque.
+model Venda {
+  id          String   @id @default(cuid())
+  empresaId   String   @map("empresa_id")
+  numero      String
+  lojaId      String   @map("loja_id")
+  clienteId   String?  @map("cliente_id")
+  /// Texto livre para venda sem cliente cadastrado ("Consumidor final").
+  clienteNome String   @default("") @map("cliente_nome")
+  operador    String   @default("")
+  data        DateTime @default(now())
+
+  subtotal  Decimal @default(0) @db.Decimal(14, 2)
+  desconto  Decimal @default(0) @db.Decimal(14, 2)
+  acrescimo Decimal @default(0) @db.Decimal(14, 2)
+  total     Decimal @default(0) @db.Decimal(14, 2)
+  troco     Decimal @default(0) @db.Decimal(14, 2)
+
+  pagamentoForma  FormaPagamentoVenda @map("pagamento_forma")
+  pagamentoValor  Decimal             @default(0) @map("pagamento_valor") @db.Decimal(14, 2)
+  pagamentoStatus StatusPagamento     @default(APROVADO) @map("pagamento_status")
+  pagamentoQuando DateTime?           @map("pagamento_quando")
+
+  tipoVenda    String      @default("") @map("tipo_venda")
+  canal        String      @default("")
+  observacao   String      @default("")
+  status       StatusVenda @default(CONCLUIDA)
+  canceladaEm  DateTime?   @map("cancelada_em")
+  criadoEm     DateTime    @default(now()) @map("criado_em")
+  atualizadoEm DateTime    @updatedAt @map("atualizado_em")
+
+  empresa Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  loja    Loja     @relation(fields: [lojaId], references: [id], onDelete: Restrict)
+  cliente Cliente? @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+
+  itens ItemVenda[]
+
+  @@unique([empresaId, numero])
+  @@index([empresaId, data])
+  @@index([empresaId, status])
+  @@index([lojaId, data])
+  @@map("venda")
+}
+
+/// Nome, EAN e preço são **congelados** no momento da venda: mudar o cadastro
+/// depois não reescreve o histórico.
+model ItemVenda {
+  id            String   @id @default(cuid())
+  vendaId       String   @map("venda_id")
+  produtoId     String   @map("produto_id")
+  produtoNome   String   @map("produto_nome")
+  ean           String   @default("")
+  imagem        String   @default("")
+  quantidade    Decimal  @db.Decimal(14, 3)
+  precoUnitario Decimal  @map("preco_unitario") @db.Decimal(12, 2)
+  total         Decimal  @db.Decimal(14, 2)
+  /// Custo médio no instante da venda, para apurar margem sem recalcular.
+  custoUnitario Decimal? @map("custo_unitario") @db.Decimal(14, 4)
+
+  venda   Venda   @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+  produto Produto @relation(fields: [produtoId], references: [id], onDelete: Restrict)
+
+  @@index([vendaId])
+  @@index([produtoId])
+  @@map("item_venda")
+}
+
+// ------------------------------------------------------------------
+// Numeração sequencial por empresa (COM-0001, VND-0001, ABT-0001)
+// ------------------------------------------------------------------
+
+/// Notificação não é armazenada: é derivada de fatos (ruptura, vencimento,
+/// compra, perda). Só a marca de "lida" precisa persistir — e por **usuário**,
+/// não por empresa: o que a Ana já leu não deveria sumir para o colega dela.
+model NotificacaoLida {
+  id        String   @id @default(cuid())
+  usuarioId String   @map("usuario_id")
+  /// Id determinístico da notificação, derivado do fato que a originou.
+  chave     String
+  lidaEm    DateTime @default(now()) @map("lida_em")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, chave])
+  @@index([usuarioId])
+  @@map("notificacao_lida")
+}
+
+model Sequencia {
+  id        String @id @default(cuid())
+  empresaId String @map("empresa_id")
+  chave     String
+  valor     Int    @default(0)
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@unique([empresaId, chave])
+  @@map("sequencia")
+}

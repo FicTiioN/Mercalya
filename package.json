@@ -1,0 +1,23 @@
+{
+  "name": "mercalya",
+  "private": true,
+  "version": "2.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @mercalya/web",
+    "dev:web": "npm run dev --workspace @mercalya/web",
+    "dev:api": "npm run dev --workspace @mercalya/api",
+    "build": "npm run build --workspaces --if-present",
+    "preview": "npm run preview --workspace @mercalya/web",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:migrate": "npm run prisma:migrate --workspace @mercalya/api",
+    "db:seed": "npm run db:seed --workspace @mercalya/api",
+    "db:studio": "npm run prisma:studio --workspace @mercalya/api"
+  }
+}

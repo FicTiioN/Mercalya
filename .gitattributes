@@ -1,0 +1,14 @@
+# Texto sempre em LF no repositorio; o checkout no Windows continua CRLF.
+# Sem isso, cada maquina reescreve as quebras de linha e o diff vira ruido.
+* text=auto eol=lf
+
+# Binarios: nunca converter, nunca tentar diff textual.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.pdf binary
+
+# Gerado pelo npm — colapsa no diff das revisoes.
+package-lock.json linguist-generated=true -diff

@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    // Sem incremental: combinado com o deleteOutDir do nest-cli, o
+    // .tsbuildinfo dizia "ja compilado" e o tsc nao emitia nada num dist
+    // recem-apagado — build "bem-sucedido" e vazio.
+    "incremental": false
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist", "prisma"]
+}
