@@ -125,6 +125,9 @@ enum MotivoPerda {
 }
 
 enum StatusVenda {
+  /// Aguardando pagamento: itens e preços congelados, estoque ainda intacto.
+  /// É o estado em que a venda fica enquanto a maquininha não responde.
+  ABERTA    @map("aberta")
   CONCLUIDA @map("concluida")
   CANCELADA @map("cancelada")
 
@@ -141,9 +144,15 @@ enum FormaPagamentoVenda {
 }
 
 enum StatusPagamento {
-  APROVADO @map("aprovado")
-  PENDENTE @map("pendente")
-  RECUSADO @map("recusado")
+  PENDENTE  @map("pendente")
+  APROVADO  @map("aprovado")
+  RECUSADO  @map("recusado")
+  /// Abortado antes de concluir — o cliente desistiu no totem.
+  CANCELADO @map("cancelado")
+  /// Devolvido depois de aprovado — a venda foi cancelada.
+  ESTORNADO @map("estornado")
+  /// Ficou pendente além do prazo e a conciliação encerrou.
+  EXPIRADO  @map("expirado")
 
   @@map("status_pagamento")
 }
@@ -174,6 +183,7 @@ model Empresa {
   perdas         PerdaEstoque[]
   clientes       Cliente[]
   vendas         Venda[]
+  pagamentos     Pagamento[]
   sequencias     Sequencia[]
 
   @@map("empresa")
@@ -667,15 +677,17 @@ model Venda {
   total     Decimal @default(0) @db.Decimal(14, 2)
   troco     Decimal @default(0) @db.Decimal(14, 2)
 
-  pagamentoForma  FormaPagamentoVenda @map("pagamento_forma")
-  pagamentoValor  Decimal             @default(0) @map("pagamento_valor") @db.Decimal(14, 2)
-  pagamentoStatus StatusPagamento     @default(APROVADO) @map("pagamento_status")
-  pagamentoQuando DateTime?           @map("pagamento_quando")
+  /// Chave que o PDV gera antes de enviar. Se a rede cair depois do commit e o
+  /// totem reenviar, a mesma chave devolve a mesma venda — nunca uma segunda
+  /// baixa de estoque.
+  chaveIdempotencia String? @map("chave_idempotencia")
 
   tipoVenda    String      @default("") @map("tipo_venda")
   canal        String      @default("")
   observacao   String      @default("")
-  status       StatusVenda @default(CONCLUIDA)
+  status       StatusVenda @default(ABERTA)
+  /// Quando o estoque foi debitado — só existe em venda CONCLUIDA.
+  concluidaEm  DateTime?   @map("concluida_em")
   canceladaEm  DateTime?   @map("cancelada_em")
   criadoEm     DateTime    @default(now()) @map("criado_em")
   atualizadoEm DateTime    @updatedAt @map("atualizado_em")
@@ -684,9 +696,11 @@ model Venda {
   loja    Loja     @relation(fields: [lojaId], references: [id], onDelete: Restrict)
   cliente Cliente? @relation(fields: [clienteId], references: [id], onDelete: SetNull)
 
-  itens ItemVenda[]
+  itens      ItemVenda[]
+  pagamentos Pagamento[]
 
   @@unique([empresaId, numero])
+  @@unique([empresaId, chaveIdempotencia])
   @@index([empresaId, data])
   @@index([empresaId, status])
   @@index([lojaId, data])
@@ -714,6 +728,50 @@ model ItemVenda {
   @@index([vendaId])
   @@index([produtoId])
   @@map("item_venda")
+}
+
+/// Um pagamento é um fato com ciclo de vida próprio, não quatro colunas da
+/// venda: com maquininha ele nasce PENDENTE, pode ser RECUSADO e tentado de
+/// novo com outra forma, e uma venda pode ser paga por mais de um meio.
+///
+/// O retorno do provedor é guardado **bruto** além do normalizado. Na hora de
+/// contestar uma transação com o adquirente, é o bruto que vale.
+model Pagamento {
+  id        String              @id @default(cuid())
+  empresaId String              @map("empresa_id")
+  vendaId   String              @map("venda_id")
+  forma     FormaPagamentoVenda
+  valor     Decimal             @db.Decimal(14, 2)
+  status    StatusPagamento     @default(PENDENTE)
+  parcelas  Int                 @default(1)
+
+  /// Quem processou: "manual" (operador registrou), "simulado", "mercadopago"…
+  provedor          String  @default("manual")
+  /// Chave enviada ao provedor. Repetir a chave não cobra duas vezes.
+  chaveIdempotencia String? @map("chave_idempotencia")
+  /// Id do pagamento **no provedor** — é o que a conciliação consulta.
+  referenciaExterna String? @map("referencia_externa")
+
+  autorizacao    String @default("")
+  nsu            String @default("")
+  bandeira       String @default("")
+  ultimosDigitos String @default("") @map("ultimos_digitos")
+  motivoRecusa   String @default("") @map("motivo_recusa")
+  retornoBruto   Json?  @map("retorno_bruto")
+
+  criadoEm     DateTime  @default(now()) @map("criado_em")
+  atualizadoEm DateTime  @updatedAt @map("atualizado_em")
+  /// Quando saiu de PENDENTE para APROVADO ou RECUSADO.
+  confirmadoEm DateTime? @map("confirmado_em")
+
+  empresa Empresa @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  venda   Venda   @relation(fields: [vendaId], references: [id], onDelete: Cascade)
+
+  @@unique([empresaId, chaveIdempotencia])
+  @@index([vendaId])
+  @@index([empresaId, status])
+  @@index([empresaId, referenciaExterna])
+  @@map("pagamento")
 }
 
 // ------------------------------------------------------------------

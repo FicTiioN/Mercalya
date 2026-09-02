@@ -449,14 +449,106 @@ O card omite a linha. É menos informação na tela, e nenhuma informação fals
 ## Vendas
 
 ```
-GET /api/vendas               histórico paginado
-GET /api/vendas/resumo        KPIs do período
-GET /api/vendas/lojas
-GET /api/vendas/:id           aceita id ou número
-GET /api/vendas/:id/historico linha do tempo
+GET  /api/vendas               histórico paginado (venda aberta não aparece)
+GET  /api/vendas/resumo        KPIs do período
+GET  /api/vendas/lojas
+GET  /api/vendas/:id           aceita id ou número
+GET  /api/vendas/:id/historico linha do tempo
+POST /api/vendas               registra venda já paga e debita a loja
+POST /api/vendas/:id/cancelar  devolve aos mesmos lotes e estorna os pagamentos
 ```
 
-Somente leitura: o PDV que registra venda em tempo real ainda não existe.
+### Pagamento é entidade, não quatro colunas
+
+Até aqui a venda carregava `pagamentoForma`, `pagamentoValor`, `pagamentoStatus` e
+`pagamentoQuando`, com status padrão **aprovado**. Era a premissa de que todo pagamento já
+nasce decidido no instante do insert — e é exatamente a premissa que a maquininha quebra:
+com terminal, o pagamento nasce pendente, pode ser recusado e tentado de novo com outra
+forma, e uma venda pode ser paga por mais de um meio.
+
+`Pagamento` virou tabela própria (1..N por venda), com ciclo de vida (`pendente`,
+`aprovado`, `recusado`, `cancelado`, `estornado`, `expirado`), `provedor` ("manual" quando o
+operador registrou; o nome do adquirente quando vier de maquininha), chave de
+idempotência, referência externa, e o **retorno bruto** do provedor além do normalizado —
+na hora de contestar uma transação com o adquirente, é o bruto que vale.
+
+A migração copiou cada venda existente para um pagamento "manual" com os mesmos dados antes
+de derrubar as colunas. Nada foi descartado: 94 vendas → 94 pagamentos, 91 aprovados e 3
+recusados, que são as 3 canceladas.
+
+Os valores novos de enum ficaram numa migração separada: o Postgres recusa usar um valor de
+enum na mesma transação que o criou (`unsafe use of new value`), e o Prisma aplica cada
+migração dentro de uma transação.
+
+### Dois passos, um commit
+
+`VendasService.registrar` faz internamente duas coisas separadas de propósito:
+
+- **`abrir`** cria a venda `ABERTA` com itens, nome e preço **congelados** — e não toca no
+  estoque.
+- **`concluir`** debita a prateleira da loja por FEFO, grava uma movimentação `VENDA` por
+  lote consumido, carimba `ultimaVendaEm` no produto e fecha a venda como `CONCLUIDA`.
+
+Hoje os dois acontecem no mesmo commit, com os pagamentos gravados entre eles. Com
+maquininha, entre `abrir` e `concluir` existe uma espera — a venda fica `ABERTA` enquanto o
+cliente aproxima o cartão — e é isso que a separação já deixa pronto. A listagem não mostra
+venda aberta: carrinho aguardando pagamento ainda não é venda.
+
+### O preço não vem do cliente
+
+O item da venda traz só `produtoId` e `quantidade`. O preço é lido de
+`ConfiguracaoProdutoLoja` no instante da venda; produto sem configuração na loja,
+desativado nela ou sem preço é recusado antes de qualquer gravação. Um totem que pudesse
+informar o próprio preço seria um totem que vende a R$ 0,01.
+
+O custo médio do instante também é congelado no item (`ItemVenda.custoUnitario`): a margem
+fica apurável depois, mesmo que a próxima compra mude o custo do produto.
+
+A soma dos pagamentos precisa cobrir o total; o que passar vira troco — e **só dinheiro gera
+troco**. Um cartão "cobrado a mais" seria um erro, não uma sobra.
+
+### Idempotência: a rede cai depois do commit
+
+O caso que quebra PDV é o commit acontecer e a resposta não chegar. O totem reenvia; sem
+proteção, é uma segunda venda e uma segunda baixa de estoque.
+
+O PDV manda uma `chaveIdempotencia`, única por empresa (índice composto). Reenviar com a mesma
+chave devolve a venda já gravada com `repetida: true`. Há um check antes da transação, para
+responder rápido, e o índice único cobre a corrida entre duas requisições simultâneas — a que
+perde a corrida recebe `P2002`, e a resposta certa é a venda que a outra gravou. O teste
+dispara as duas ao mesmo tempo e confere que o estoque baixou uma vez.
+
+### Cancelar devolve aos mesmos lotes
+
+A movimentação `VENDA` guarda o lote que saiu e o número da venda como `documento`. Cancelar
+lê essas saídas e devolve **exatamente** as mesmas quantidades aos mesmos lotes — é o
+inverso da baixa, não uma estimativa. Os pagamentos aprovados ficam `estornados`; com
+maquininha, é aqui que o estorno será pedido ao provedor.
+
+`DEVOLUCAO` tem duas origens no histórico: retirada da loja (loja → central, interna, não
+altera o total) e cancelamento de venda (cliente → loja, `origemId` nulo, entra de fora). Na
+identidade contábil só a segunda conta.
+
+### Testes de integração contra o Postgres
+
+`npm test` na API roda Jest contra um banco `mercalya_test` no mesmo servidor, criado sozinho
+na primeira execução e migrado com **as mesmas migrações** do banco real — não há `db push`
+nem schema paralelo.
+
+Cada arquivo de teste abre a própria empresa. O isolamento vem do modelo: toda consulta é
+filtrada por `empresaId`, então quatro arquivos rodando em paralelo no mesmo banco não se
+veem, sem truncate. Se um teste enxergasse dado de outro, seria um vazamento de tenant — e é
+exatamente o que a suíte deve pegar (há testes para isso em compras e vendas).
+
+As invariantes que antes eram verificadas à mão agora estão travadas:
+
+- saldo nunca negativo; FEFO com sem-validade por último; custo médio ponderado que não
+  zera sem saldo; numeração sem colisão sob oito transações concorrentes;
+- compra: uma falha no segundo item não deixa rastro do primeiro **nem consome a numeração**;
+- abastecimento: `totalGlobal` antes = depois;
+- venda: baixa por FEFO com preço e custo congelados; sem saldo nada é gravado; idempotência
+  sequencial e em corrida; troco só de dinheiro; cancelamento devolve aos mesmos lotes;
+  identidade `entradas − perdas − vendas + devoluções de cliente = estoque`.
 
 ### As 94 vendas debitam estoque
 
@@ -617,11 +709,19 @@ token da sessão, e só o AuthService o toca.
 
 Todo o sistema é servido pela API. O que resta são funcionalidades novas, não migração:
 
-1. **PDV** — registrar venda em tempo real. O histórico já debita estoque; falta a escrita.
-2. **Cancelamento de compra e devolução ao fornecedor** — o inverso da entrada, com o mesmo
+1. **PDV — próximas fases.** A escrita de venda existe (`POST /api/vendas`) e o ciclo
+   compra → estoque → loja → venda → baixa fecha. Faltam, nesta ordem: a **porta de
+   pagamento** (interface iniciar/consultar/abortar/estornar) com um **adaptador simulado**
+   e a **conciliação** de pendentes; a **tela do totem** de autoatendimento, fora do
+   `AppShell`; e só então o **provedor real** (Mercado Pago Point), com credenciais por
+   empresa. O estado `ABERTA` e a separação `abrir`/`concluir` já são o encaixe.
+2. **Fiscal (NFC-e / SAT)** — venda a consumidor final exige documento fiscal. Para uso
+   interno dá para adiar; para vender a terceiros é bloqueante, e acopla com `Venda` e
+   `Pagamento`.
+3. **Cancelamento de compra e devolução ao fornecedor** — o inverso da entrada, com o mesmo
    cuidado transacional.
-3. **Contas a pagar** — o vencimento da compra já é gravado e ainda não vira nada.
-4. **Meta de vendas** — hoje o Painel omite a barra de progresso porque não há meta
+4. **Contas a pagar** — o vencimento da compra já é gravado e ainda não vira nada.
+5. **Meta de vendas** — hoje o Painel omite a barra de progresso porque não há meta
    cadastrada em lugar nenhum.
-5. **Seletor de loja** — o modelo suporta N lojas por empresa, mas a interface sempre usa a
+6. **Seletor de loja** — o modelo suporta N lojas por empresa, mas a interface sempre usa a
    primeira.

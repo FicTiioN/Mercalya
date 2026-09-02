@@ -39,6 +39,7 @@ Abre em <http://localhost:5173>.
 | `npm run build` | typecheck + build de produção |
 | `npm run lint` | ESLint em todos os workspaces (zero warnings) |
 | `npm run typecheck` | TypeScript em todos os workspaces |
+| `npm test` | testes de integração da API contra um Postgres real (`mercalya_test`) |
 | `npm run dev:api` | API NestJS em <http://localhost:3000/api> |
 | `npm run db:up` / `db:down` | Postgres via docker-compose |
 | `npm run db:migrate` | aplica as migrações |
@@ -55,10 +56,13 @@ O fluxo abaixo funciona de ponta a ponta e os saldos se mantêm coerentes:
 4. **Abastecer loja** → transfere do central para a loja. O central diminui, a loja aumenta
    e **o total global permanece igual**; gera `TRANSFERENCIA`.
 5. **Registrar perda** → reduz o estoque e gera `PERDA`.
-6. **Movimentações** e **Painel gerencial** refletem tudo isso.
+6. **Vender** (`POST /api/vendas`) → congela o preço da loja, grava os pagamentos e debita a
+   prateleira por FEFO em uma transação; gera `VENDA`. **Cancelar** devolve aos mesmos
+   lotes e estorna. A tela do totem ainda não existe — por enquanto é via API.
+7. **Movimentações** e **Painel gerencial** refletem tudo isso.
 
-Os dados ficam salvos no navegador. Para voltar ao estado inicial: menu do usuário →
-*Restaurar dados* (ou em **Configurações**).
+Os dados ficam no Postgres. Para voltar ao estado inicial: `npm run db:seed` (apaga e recria
+a base de demonstração — inclusive outras contas criadas com `db:nova-conta`).
 
 ## Decisões de domínio já tomadas
 
@@ -86,6 +90,11 @@ npm run dev:api
 O app exige login: `admin@mercalya.com.br` / `mercalya`. **Com a API fora do ar não dá
 para entrar** — a autenticação é real.
 
+Os testes de integração (`npm test`) rodam contra um banco `mercalya_test` no mesmo Postgres,
+criado e migrado sozinho na primeira execução. Eles travam as invariantes do núcleo — saldo
+nunca negativo, FEFO, custo médio, transação atômica, idempotência da venda, identidade
+contábil — que antes eram verificadas à mão.
+
 > Esta máquina já roda um **Postgres nativo na 5432**, então o `docker-compose`
 > publica a **5433**. As duas URLs estão prontas em `apps/api/.env.example`.
 
@@ -94,6 +103,8 @@ para entrar** — a autenticação é real.
 - **Abastecimento** e o seletor de loja assumem loja única; viram trabalho real na segunda loja.
 - Campos sem UI: `pontoCompra`, `estoqueMaximoCentral`, controle de validade, `estoqueIdeal`.
 - Compras não têm edição, cancelamento, devolução ao fornecedor nem contas a pagar.
+- Vendas: registro e cancelamento existem na API, mas não há tela — o totem de
+  autoatendimento é a próxima fase do PDV.
 - Exportações são apenas toast.
 
 ## Contas de demonstração

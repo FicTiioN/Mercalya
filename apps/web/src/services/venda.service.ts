@@ -3,6 +3,7 @@ import type {
   EventoVenda,
   FormaPagamentoVenda,
   ID,
+  NovaVenda,
   Paginado,
   StatusVenda,
   VendaListItem,
@@ -43,17 +44,30 @@ export const ROTULOS_PAGAMENTO: Record<FormaPagamentoVenda, string> = {
 }
 
 /**
- * Vendas — somente leitura nesta fase.
+ * Vendas.
  *
- * O histórico veio do seed **já debitando estoque**: cada venda concluída
- * gerou movimentação `VENDA` e reduziu a prateleira, em ordem cronológica.
- * Por isso entradas − perdas − vendas fecha com o saldo atual.
+ * `registrar` é a única saída de estoque por venda: a API congela os preços
+ * da loja, grava os pagamentos e debita a prateleira por FEFO em uma
+ * transação só. O preço **não** é enviado — vem da configuração da loja.
  *
  * Os deltas do resumo comparam o período consultado com o **imediatamente
  * anterior de mesma duração** — é medição, não a estimativa fixa que o mock
  * devolvia.
  */
 export const VendaService = {
+  /**
+   * Registra uma venda já paga. Reenviar com a mesma `chaveIdempotencia`
+   * devolve a mesma venda com `repetida: true` — sem segunda baixa.
+   */
+  async registrar(nova: NovaVenda): Promise<{ venda: VendaListItem; repetida: boolean }> {
+    return chamarApi('/vendas', { metodo: 'POST', corpo: nova })
+  },
+
+  /** Devolve a mercadoria à prateleira nos mesmos lotes e estorna os pagamentos. */
+  async cancelar(id: ID, motivo?: string): Promise<VendaListItem> {
+    return chamarApi(`/vendas/${id}/cancelar`, { metodo: 'POST', corpo: { motivo } })
+  },
+
   async listar(consulta: ConsultaVendas = {}): Promise<Paginado<VendaListItem>> {
     return chamarApi(`/vendas${montarQuery({ ...consulta })}`)
   },

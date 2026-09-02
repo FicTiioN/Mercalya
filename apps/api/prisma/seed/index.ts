@@ -2,6 +2,7 @@ import {
   ControleValidade,
   FormaPagamento,
   MotivoPerda,
+  FormaPagamentoVenda,
   PapelUsuario,
   PrismaClient,
   StatusCompra,
@@ -49,6 +50,7 @@ function paraEnum<T>(valor: string): T {
 
 /** O seed é de demonstração: recria a base do zero, em ordem segura de FK. */
 async function limpar() {
+  await prisma.pagamento.deleteMany()
   await prisma.itemVenda.deleteMany()
   await prisma.venda.deleteMany()
   await prisma.cliente.deleteMany()
@@ -289,15 +291,12 @@ async function main() {
       acrescimo: v.acrescimo,
       total: v.total,
       troco: v.troco,
-      pagamentoForma: paraEnum(v.pagamento.forma),
-      pagamentoValor: v.pagamento.valorPago,
-      pagamentoStatus: paraEnum<StatusPagamento>(v.pagamento.status),
-      pagamentoQuando: v.pagamento.quando,
       tipoVenda: v.tipoVenda,
       canal: v.canal,
       observacao: v.observacao,
       status: paraEnum(v.status),
       canceladaEm: v.status === 'cancelada' ? v.atualizadoEm : null,
+      concluidaEm: v.concluidaEm,
       criadoEm: v.registradoEm,
     })),
   })
@@ -314,6 +313,24 @@ async function main() {
         quantidade: i.quantidade,
         precoUnitario: i.precoUnitario,
         total: i.total,
+      })),
+    ),
+  })
+
+  await prisma.pagamento.createMany({
+    data: vendas.flatMap((v) =>
+      v.pagamentos.map((p) => ({
+        id: p.id,
+        empresaId: EMPRESA_ID,
+        vendaId: v.id,
+        forma: paraEnum<FormaPagamentoVenda>(p.forma),
+        valor: p.valor,
+        status: paraEnum<StatusPagamento>(p.status),
+        parcelas: p.parcelas,
+        provedor: p.provedor,
+        motivoRecusa: p.motivoRecusa,
+        criadoEm: p.criadoEm,
+        confirmadoEm: p.confirmadoEm,
       })),
     ),
   })

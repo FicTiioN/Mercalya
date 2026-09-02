@@ -526,11 +526,21 @@ export interface Notificacao {
 /* Vendas                                                              */
 /* ------------------------------------------------------------------ */
 
-export type StatusVenda = 'concluida' | 'cancelada'
+/** `aberta` = aguardando pagamento; itens congelados, estoque ainda intacto. */
+export type StatusVenda = 'aberta' | 'concluida' | 'cancelada'
 
 export type FormaPagamentoVenda = 'pix' | 'dinheiro' | 'cartao-debito' | 'cartao-credito'
 
-export type StatusPagamento = 'aprovado' | 'pendente' | 'recusado'
+export type StatusPagamento =
+  | 'pendente'
+  | 'aprovado'
+  | 'recusado'
+  /** Abortado antes de concluir. */
+  | 'cancelado'
+  /** Devolvido depois de aprovado — a venda foi cancelada. */
+  | 'estornado'
+  /** Pendente além do prazo; a conciliação encerrou. */
+  | 'expirado'
 
 export interface ItemVenda {
   id: ID
@@ -544,11 +554,26 @@ export interface ItemVenda {
   total: number
 }
 
-export interface PagamentoVenda {
+/**
+ * Um pagamento tem ciclo de vida próprio: nasce pendente na maquininha, pode
+ * ser recusado e tentado de novo com outra forma. Uma venda pode ter vários.
+ */
+export interface Pagamento {
+  id: ID
   forma: FormaPagamentoVenda
-  valorPago: number
+  valor: number
   status: StatusPagamento
-  quando: string
+  parcelas: number
+  /** "manual" quando o operador registrou; o nome do adquirente quando veio de maquininha. */
+  provedor: string
+  autorizacao: string
+  nsu: string
+  bandeira: string
+  ultimosDigitos: string
+  motivoRecusa: string
+  criadoEm: string
+  /** Quando saiu de pendente para aprovado ou recusado. */
+  confirmadoEm: string | null
 }
 
 export interface Venda {
@@ -563,15 +588,31 @@ export interface Venda {
   desconto: number
   acrescimo: number
   total: number
-  pagamento: PagamentoVenda
+  pagamentos: Pagamento[]
   troco: number
   tipoVenda: string
   canal: string
   observacao: string
   status: StatusVenda
+  /** Quando o estoque foi debitado — só em venda concluída. */
+  concluidaEm: string | null
   registradoEm: string
   atualizadoEm: string
   idInterno: string
+}
+
+/** O que o PDV envia para registrar uma venda. Preço não vai: a API lê da loja. */
+export interface NovaVenda {
+  /** Sem loja, a API usa a primeira ativa da empresa. */
+  lojaId?: ID
+  clienteId?: ID
+  clienteNome?: string
+  itens: Array<{ produtoId: ID; quantidade: number }>
+  pagamentos: Array<{ forma: FormaPagamentoVenda; valor: number; parcelas?: number }>
+  desconto?: number
+  observacao?: string
+  /** Reenviar com a mesma chave devolve a mesma venda, sem segunda baixa. */
+  chaveIdempotencia?: string
 }
 
 export interface VendaListItem extends Venda {

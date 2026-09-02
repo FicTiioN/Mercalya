@@ -70,8 +70,11 @@ export function VendaDetalhePage() {
   }
 
   const v = venda.dados
-  const visualPagamento = v ? VISUAL_PAGAMENTO[v.pagamento.forma] : null
-  const IconePagamento = visualPagamento?.icone ?? CreditCard
+  // O que de fato entrou: aprovado (ou aprovado e depois estornado). Recusado não conta.
+  const recebido =
+    v?.pagamentos
+      .filter((p) => p.status === 'aprovado' || p.status === 'estornado')
+      .reduce((acc, p) => acc + p.valor, 0) ?? 0
 
   return (
     <PageContainer>
@@ -204,9 +207,9 @@ export function VendaDetalhePage() {
                 </p>
               </div>
 
-              {v.pagamento.forma === 'dinheiro' && (
+              {v.pagamentos.some((p) => p.forma === 'dinheiro') && (
                 <div className="mt-4 border-t border-dashed border-line pt-4">
-                  <LinhaResumo rotulo="Pagamento recebido" valor={moeda(v.pagamento.valorPago)} />
+                  <LinhaResumo rotulo="Pagamento recebido" valor={moeda(recebido)} />
                   <LinhaResumo rotulo="Troco" valor={moeda(v.troco)} tom="success" />
                 </div>
               )}
@@ -237,30 +240,37 @@ export function VendaDetalhePage() {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td className="px-4 py-3.5">
-                        <span className="flex items-center gap-2 whitespace-nowrap text-body text-ink">
-                          <IconePagamento
-                            className={cn('h-4 w-4 shrink-0', visualPagamento?.classe)}
-                            strokeWidth={1.75}
-                          />
-                          {ROTULOS_PAGAMENTO[v.pagamento.forma]}
-                        </span>
-                      </td>
-                      <td className="whitespace-nowrap px-2 py-3.5 text-body tabular text-ink">
-                        {moeda(v.pagamento.valorPago)}
-                      </td>
-                      <td className="px-2 py-3.5">
-                        <StatusBadge
-                          status={v.pagamento.status === 'aprovado' ? 'concluida' : 'cancelada'}
-                          label={v.pagamento.status === 'aprovado' ? 'Aprovado' : 'Recusado'}
-                        />
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3.5 text-caption tabular text-muted">
-                        <span className="block">{formatarData(v.pagamento.quando)}</span>
-                        <span className="block">{hora(v.pagamento.quando)}</span>
-                      </td>
-                    </tr>
+                    {v.pagamentos.map((p) => {
+                      const visual = VISUAL_PAGAMENTO[p.forma]
+                      const Icone = visual.icone
+                      const quando = p.confirmadoEm ?? p.criadoEm
+                      return (
+                        <tr key={p.id} className="border-t border-line first:border-t-0">
+                          <td className="px-4 py-3.5">
+                            <span className="flex items-center gap-2 whitespace-nowrap text-body text-ink">
+                              <Icone
+                                className={cn('h-4 w-4 shrink-0', visual.classe)}
+                                strokeWidth={1.75}
+                              />
+                              {ROTULOS_PAGAMENTO[p.forma]}
+                              {p.parcelas > 1 && (
+                                <span className="text-caption text-muted">{p.parcelas}x</span>
+                              )}
+                            </span>
+                          </td>
+                          <td className="whitespace-nowrap px-2 py-3.5 text-body tabular text-ink">
+                            {moeda(p.valor)}
+                          </td>
+                          <td className="px-2 py-3.5">
+                            <StatusBadge status={p.status} />
+                          </td>
+                          <td className="whitespace-nowrap px-4 py-3.5 text-caption tabular text-muted">
+                            <span className="block">{formatarData(quando)}</span>
+                            <span className="block">{hora(quando)}</span>
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
