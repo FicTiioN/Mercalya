@@ -31,7 +31,7 @@ import {
   Users,
 } from 'lucide-react'
 import type { Alerta, DashboardGerencial } from '@/models'
-import { PainelService } from '@/services'
+import { PainelService, AppSession } from '@/services'
 import { useRecurso } from '@/lib/useRecurso'
 import { cn } from '@/lib/cn'
 import { data as formatarData, moeda, numero, percentual } from '@/lib/format'
@@ -71,7 +71,7 @@ const INICIO_PERIODO = new Date(HOJE.getFullYear(), HOJE.getMonth(), 1)
 export function PainelGerencialPage() {
   const navegar = useNavigate()
   const [granularidade, setGranularidade] = useState<'diario' | 'semanal' | 'mensal'>('diario')
-  const [loja, setLoja] = useState('loja-001')
+  const [loja, setLoja] = useState(AppSession.lojaAtualId())
 
   const lojas = useRecurso(() => PainelService.lojas(), [])
   const { dados, carregando } = useRecurso(

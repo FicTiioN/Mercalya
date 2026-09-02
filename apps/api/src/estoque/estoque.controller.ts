@@ -46,23 +46,27 @@ export class EstoqueController {
   /* --------------------------- abastecimento --------------------------- */
 
   @Get('abastecimento/sugestoes')
-  sugestoes(@EmpresaAtual() empresaId: string) {
-    return this.estoque.sugestoes(empresaId)
+  sugestoes(@EmpresaAtual() empresaId: string, @Query('lojaId') lojaId?: string) {
+    return this.estoque.sugestoes(empresaId, lojaId)
   }
 
   @Get('abastecimento/sugestoes/resumo')
-  resumoSugestoes(@EmpresaAtual() empresaId: string) {
-    return this.estoque.resumoSugestoes(empresaId)
+  resumoSugestoes(@EmpresaAtual() empresaId: string, @Query('lojaId') lojaId?: string) {
+    return this.estoque.resumoSugestoes(empresaId, lojaId)
   }
 
   @Get('abastecimento/origem-destino')
-  origemDestino(@EmpresaAtual() empresaId: string) {
-    return this.estoque.origemDestino(empresaId)
+  origemDestino(@EmpresaAtual() empresaId: string, @Query('lojaId') lojaId?: string) {
+    return this.estoque.origemDestino(empresaId, lojaId)
   }
 
   @Get('abastecimento/disponiveis')
-  disponiveis(@EmpresaAtual() empresaId: string, @Query('busca') busca?: string) {
-    return this.estoque.produtosDisponiveis(empresaId, busca ?? '')
+  disponiveis(
+    @EmpresaAtual() empresaId: string,
+    @Query('busca') busca?: string,
+    @Query('lojaId') lojaId?: string,
+  ) {
+    return this.estoque.produtosDisponiveis(empresaId, busca ?? '', lojaId)
   }
 
   @Get('abastecimento/recentes')

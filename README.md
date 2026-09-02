@@ -72,7 +72,7 @@ Definidas antes de modelar o banco, porque afetam o schema:
 
 | Tema | Decisão |
 |---|---|
-| **Multi-loja** | Uma empresa tem N lojas. O estoque central é **único por empresa** e abastece todas. Central por loja fica para uma segunda fase. |
+| **Multi-loja** | Uma empresa tem N lojas, geridas em Configurações → Lojas e trocadas pelo menu da conta. O estoque central é **único por empresa** e abastece todas. Central por loja fica para uma segunda fase. |
 | **Venda** | Debita o estoque **da loja** e registra movimentação. |
 | **Usuários** | Só administrador nesta fase — mas `usuario` já nasce com `papel` e `empresa_id`. |
 | **Cliente** | Entidade própria, **sem campos obrigatórios**. Documento e telefone únicos quando preenchidos, para permitir deduplicar depois. |
@@ -102,7 +102,6 @@ contábil — que antes eram verificadas à mão.
 
 ## Pendências conhecidas do frontend
 
-- **Abastecimento** e o seletor de loja assumem loja única; viram trabalho real na segunda loja.
 - Campos sem UI: `pontoCompra`, `estoqueMaximoCentral`, controle de validade, `estoqueIdeal`.
 - Compras não têm edição, cancelamento, devolução ao fornecedor nem contas a pagar.
 - Totem: só maquininha simulada por enquanto. O adquirente real (Mercado Pago Point) entra

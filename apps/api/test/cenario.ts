@@ -11,6 +11,8 @@ import { ComprasService } from '../src/compras/compras.service'
 import { VendasModule } from '../src/vendas/vendas.module'
 import { VendasService } from '../src/vendas/vendas.service'
 import { ProvedorSimulado } from '../src/pagamentos/simulado/provedor-simulado'
+import { LojasModule } from '../src/lojas/lojas.module'
+import { LojasService } from '../src/lojas/lojas.service'
 import type { ItemCompraDto } from '../src/compras/dto/entrada-compra.dto'
 import type { AbrirVendaDto, RegistrarVendaDto } from '../src/vendas/dto/registrar-venda.dto'
 import type { NovoPagamentoDto } from '../src/vendas/dto/novo-pagamento.dto'
@@ -42,6 +44,7 @@ export class Cenario {
     readonly compras: ComprasService,
     readonly vendas: VendasService,
     readonly simulado: ProvedorSimulado,
+    readonly lojas: LojasService,
     readonly empresaId: string,
     readonly lojaId: string,
     readonly centralId: string,
@@ -52,7 +55,7 @@ export class Cenario {
 
   static async montar(): Promise<Cenario> {
     const modulo = await Test.createTestingModule({
-      imports: [PrismaModule, EstoqueModule, ComprasModule, VendasModule],
+      imports: [PrismaModule, EstoqueModule, ComprasModule, VendasModule, LojasModule],
     }).compile()
 
     const prisma = modulo.get(PrismaService)
@@ -87,6 +90,7 @@ export class Cenario {
       modulo.get(ComprasService),
       modulo.get(VendasService),
       simulado,
+      modulo.get(LojasService),
       empresa.id,
       loja.id,
       central.id,

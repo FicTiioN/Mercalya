@@ -725,6 +725,41 @@ mesma categoria para quem lê a lista.
 
 ---
 
+## Lojas
+
+```
+GET   /api/lojas       todas, inclusive inativas
+POST  /api/lojas       { nome, condominio? }  — cria a loja e a prateleira dela
+PATCH /api/lojas/:id   { nome?, condominio?, ativa? }
+```
+
+O modelo sempre suportou N lojas por empresa; o que faltava era a gestão e a interface.
+
+### A loja nasce com a prateleira
+
+Criar uma loja cria o `LocalEstoque` de tipo LOJA **no mesmo commit**. Sem ele a API não sabe
+de onde uma venda sai nem para onde um abastecimento vai, e várias telas falham antes do
+empty state — foi o que a conta vazia mostrou lá atrás. Renomear a loja renomeia a
+prateleira; os dois não podem divergir.
+
+### Loja não é apagada
+
+Tem vendas, movimentações e configurações de produto apontando para ela. **Desativar** tira
+do seletor e das operações (venda em loja inativa é recusada), e o histórico continua
+legível. A empresa precisa de ao menos uma ativa — é para ela que vai a venda sem `lojaId`.
+
+### A loja padrão é a mais antiga
+
+Toda rota operacional aceita `lojaId`; sem ele, cai na **primeira loja ativa por data de
+criação** (`lojaPadrao`). A sessão (`/auth/eu`) devolve as lojas na mesma ordem, para o
+navegador sem escolha e a API sem parâmetro concordarem. Ordenar por nome parecia natural e
+estava errado: criar uma loja chamada "Anexo" mudava, em silêncio, onde as vendas caíam.
+
+Os testes de `lojas.spec.ts` provam o isolamento: abastecer e vender na loja B não toca no
+saldo da loja A, o preço é o da loja da venda, e a venda sem loja vai para a primeira ativa.
+
+---
+
 ## Painel, Início e Notificações
 
 ```
@@ -816,5 +851,12 @@ Todo o sistema é servido pela API. O que resta são funcionalidades novas, não
 4. **Contas a pagar** — o vencimento da compra já é gravado e ainda não vira nada.
 5. **Meta de vendas** — hoje o Painel omite a barra de progresso porque não há meta
    cadastrada em lugar nenhum.
-6. **Seletor de loja** — o modelo suporta N lojas por empresa, mas a interface sempre usa a
-   primeira.
+6. **Acesso do totem** — hoje o totem entra com a conta do administrador. Antes de um totem
+   ir para uma loja real, precisa existir um acesso de dispositivo que só faça o que o
+   totem faz. Com o app integrador no tablet (ver abaixo), é ele que carregará essa
+   credencial.
+7. **App integrador no tablet** — decisão de produto: um app local no totem vai falar com a
+   maquininha e com a API. A API então precisa de um endpoint em que o app **registra o
+   resultado** de um pagamento pendente (aprovado/recusado + retorno bruto), com
+   idempotência; concluir a venda, estornar e conciliar já existem. A tela `/totem` web
+   continua como demonstração e especificação do que o app faz.

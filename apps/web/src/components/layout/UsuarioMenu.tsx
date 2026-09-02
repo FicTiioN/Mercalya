@@ -56,7 +56,10 @@ export function UsuarioMenu({
             role="menuitemradio"
             aria-checked={loja.ativa}
             disabled={lojas.length === 1}
-            onClick={aoFechar}
+            onClick={() => {
+              AppSession.selecionarLoja(loja.id)
+              aoFechar()
+            }}
             className={cn(
               'flex w-full items-center gap-3 px-4 py-2 text-left transition-colors',
               lojas.length > 1 && 'hover:bg-surface-2',

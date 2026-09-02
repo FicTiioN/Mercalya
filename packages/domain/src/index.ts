@@ -255,7 +255,15 @@ export interface Loja {
   id: ID
   nome: string
   condominio: string
-  localId: ID
+  /** Inativa: fora do seletor e das operações; o histórico continua legível. */
+  ativa: boolean
+  criadoEm: string
+}
+
+export interface EntradaLoja {
+  nome: string
+  condominio?: string
+  ativa?: boolean
 }
 
 export interface Usuario {

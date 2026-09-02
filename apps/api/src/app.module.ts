@@ -10,6 +10,7 @@ import { FornecedoresModule } from './fornecedores/fornecedores.module'
 import { EstoqueModule } from './estoque/estoque.module'
 import { ComprasModule } from './compras/compras.module'
 import { LojaModule } from './loja/loja.module'
+import { LojasModule } from './lojas/lojas.module'
 import { VendasModule } from './vendas/vendas.module'
 import { PainelModule } from './painel/painel.module'
 import { JwtGuard } from './auth/jwt.guard'
@@ -26,6 +27,7 @@ import { JwtGuard } from './auth/jwt.guard'
     EstoqueModule,
     ComprasModule,
     LojaModule,
+    LojasModule,
     VendasModule,
     PainelModule,
     HealthModule,

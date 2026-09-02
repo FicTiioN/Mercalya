@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ItemLojaView, Pagamento, VendaListItem } from '@/models'
-import { LojaService, PROVEDOR_PAGAMENTO, VendaService } from '@/services'
+import { AppSession, LojaService, PROVEDOR_PAGAMENTO, VendaService } from '@/services'
 
 /** O totem não recebe dinheiro: sem operador, não há quem dê troco. */
 export const FORMAS_TOTEM = ['cartao-credito', 'cartao-debito', 'pix'] as const
@@ -285,6 +285,7 @@ export function useTotem() {
         if (!v || v.status !== 'aberta') {
           chaveRef.current ??= crypto.randomUUID()
           const aberta = await VendaService.abrir({
+            lojaId: AppSession.lojaAtualId(),
             itens: itens.map((i) => ({ produtoId: i.produtoId, quantidade: i.quantidade })),
             chaveIdempotencia: chaveRef.current,
           })

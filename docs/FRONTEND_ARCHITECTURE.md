@@ -235,6 +235,25 @@ recusado, cancelado, estornado, expirado). A listagem mostra o pagamento princip
 aprovado de maior valor — e um "+N" quando há outros; o detalhe lista todos. Os KPIs da
 listagem respeitam os mesmos filtros da tabela.
 
+### Loja em contexto
+
+A empresa tem N lojas e quase toda tela opera sobre uma. A escolha vive em `AppSession`
+(`services/sessao.ts`), persistida no `localStorage` por empresa — é preferência do
+**dispositivo**, não da conta: o totem da loja B precisa acordar na loja B mesmo entrando
+com o login que o escritório usa na A. A escolha é validada contra as lojas ativas da
+sessão; loja desativada ou desconhecida cai para a primeira (a mais antiga, o mesmo padrão
+da API).
+
+Os **services** injetam `lojaId` sozinhos (`LojaService`, `AbastecimentoService`,
+`EstoqueService.sugestoes`, `ProdutoService`) — nenhuma tela precisou aprender a passar o
+id. Trocar de loja (menu da conta, ou o botão com o nome da loja que aparece no header quando
+há mais de uma) dispara `useLojaAtual`, e o `AppShell` remonta a página (`key` com o id):
+cada tela recarrega os dados da loja nova sem saber que existe um seletor.
+
+A gestão das lojas fica em Configurações → Lojas: criar (a prateleira nasce junto),
+renomear, desativar. Depois de qualquer alteração a sessão é recarregada, e o seletor
+reflete a lista nova sem sair e entrar.
+
 ### Totem de autoatendimento
 
 `/totem` é a tela em que o **cliente** passa os produtos e paga sozinho. Vive fora do

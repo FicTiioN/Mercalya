@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import {
   Bell,
-  Building2,
   Database,
   ExternalLink,
   MonitorSmartphone,
@@ -14,10 +13,11 @@ import { PageContainer } from '@/components/layout/AppShell'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { SectionCard } from '@/components/ui/Card'
 import { CatalogoSection } from './CatalogoSection'
+import { LojasSection } from './LojasSection'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { Alert } from '@/components/ui/Feedback'
-import { FormField, Input, Select, Toggle } from '@/components/ui/Form'
+import { FormField, Input, Toggle } from '@/components/ui/Form'
 import { Avatar } from '@/components/ui/Misc'
 import { useToast } from '@/components/ui/toast-context'
 
@@ -39,26 +39,7 @@ export function ConfiguracoesPage() {
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <SectionCard
-          icone={<Building2 className="h-5 w-5" strokeWidth={1.75} />}
-          titulo="Loja e condomínio"
-          classeCorpo="grid grid-cols-1 gap-5 pt-5"
-        >
-          <FormField label="Condomínio" htmlFor="condominio">
-            <Input id="condominio" value={AppSession.condominioAtual()} readOnly disabled />
-          </FormField>
-          <FormField label="Loja" htmlFor="loja">
-            <Input id="loja" value={AppSession.lojaAtual()} readOnly disabled />
-          </FormField>
-          <FormField label="Fuso horário" htmlFor="fuso">
-            <Select
-              id="fuso"
-              value="america-sao_paulo"
-              onChange={() => undefined}
-              opcoes={[{ valor: 'america-sao_paulo', label: 'America/São_Paulo (GMT-3)' }]}
-            />
-          </FormField>
-        </SectionCard>
+        <LojasSection />
 
         <CatalogoSection />
 

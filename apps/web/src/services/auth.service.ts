@@ -102,6 +102,13 @@ export const AuthService = {
     return emVoo
   },
 
+  /** Busca a sessão de novo — as lojas mudaram e o seletor precisa saber. */
+  async recarregarSessao(): Promise<SessaoAtual | null> {
+    if (!lerToken()) return null
+    sessao = await requisitar<SessaoAtual>('/auth/eu')
+    return sessao
+  },
+
   sair(): void {
     sessao = null
     emVoo = null

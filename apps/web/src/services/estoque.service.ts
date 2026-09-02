@@ -7,6 +7,7 @@ import type {
   SugestaoAbastecimento,
 } from '@/models'
 import { chamarApi, montarQuery } from './chamada'
+import { AppSession } from './sessao'
 
 export interface ConsultaEstoque extends ConsultaBase {
   categoriaId?: string
@@ -52,12 +53,15 @@ export const EstoqueService = {
     return chamarApi(`/estoque/resumo${montarQuery({ localId })}`)
   },
 
+  /** Para a loja em contexto. */
   async sugestoes(): Promise<SugestaoAbastecimento[]> {
-    return chamarApi('/abastecimento/sugestoes')
+    return chamarApi(`/abastecimento/sugestoes${montarQuery({ lojaId: AppSession.lojaAtualId() })}`)
   },
 
   async resumoSugestoes(): Promise<ResumoSugestoes> {
-    return chamarApi('/abastecimento/sugestoes/resumo')
+    return chamarApi(
+      `/abastecimento/sugestoes/resumo${montarQuery({ lojaId: AppSession.lojaAtualId() })}`,
+    )
   },
 
   /** Corrige o saldo de um lote e deixa uma movimentação de AJUSTE. */
