@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common'
 import { APP_GUARD } from '@nestjs/core'
 import { ConfigModule } from '@nestjs/config'
+import { ScheduleModule } from '@nestjs/schedule'
 import { PrismaModule } from './prisma/prisma.module'
 import { HealthModule } from './health/health.module'
 import { AuthModule } from './auth/auth.module'
@@ -16,6 +17,8 @@ import { JwtGuard } from './auth/jwt.guard'
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    // Liga os @Interval — hoje só a conciliação de pagamentos, a cada minuto.
+    ScheduleModule.forRoot(),
     PrismaModule,
     AuthModule,
     ProdutosModule,

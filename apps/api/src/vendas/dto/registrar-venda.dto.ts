@@ -39,7 +39,8 @@ export class PagamentoVendaDto {
   parcelas?: number
 }
 
-export class RegistrarVendaDto {
+/** O carrinho: o que abre uma venda, com ou sem pagamento junto. */
+export class AbrirVendaDto {
   /** Sem loja informada, usa a primeira ativa da empresa. */
   @IsOptional() @IsString()
   lojaId?: string
@@ -56,12 +57,6 @@ export class RegistrarVendaDto {
   @Type(() => ItemVendaDto)
   itens!: ItemVendaDto[]
 
-  @IsArray()
-  @ArrayMinSize(1)
-  @ValidateNested({ each: true })
-  @Type(() => PagamentoVendaDto)
-  pagamentos!: PagamentoVendaDto[]
-
   @IsOptional() @Type(() => Number) @IsNumber() @Min(0)
   desconto?: number
 
@@ -75,4 +70,13 @@ export class RegistrarVendaDto {
    */
   @IsOptional() @IsString() @MaxLength(64)
   chaveIdempotencia?: string
+}
+
+/** Venda já paga, em uma chamada: o operador recebeu e registra tudo junto. */
+export class RegistrarVendaDto extends AbrirVendaDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => PagamentoVendaDto)
+  pagamentos!: PagamentoVendaDto[]
 }

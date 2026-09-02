@@ -454,8 +454,15 @@ GET  /api/vendas/resumo        KPIs do período
 GET  /api/vendas/lojas
 GET  /api/vendas/:id           aceita id ou número
 GET  /api/vendas/:id/historico linha do tempo
-POST /api/vendas               registra venda já paga e debita a loja
+POST /api/vendas               registra venda já paga e debita a loja (balcão)
 POST /api/vendas/:id/cancelar  devolve aos mesmos lotes e estorna os pagamentos
+
+POST /api/vendas/abrir                          totem: abre o carrinho, estoque intacto
+POST /api/vendas/:id/pagamentos                 manual → aprovado; por provedor → pendente, aciona a maquininha
+GET  /api/vendas/:id/pagamentos/:pid            polling: sincroniza com o provedor e conclui a venda se coberta
+POST /api/vendas/:id/pagamentos/:pid/abortar    o cliente desistiu
+POST /api/vendas/conciliar                      roda a conciliação agora (também roda a cada minuto)
+POST /api/pagamentos/:id/simulador/aprovar|recusar   controle da maquininha simulada
 ```
 
 ### Pagamento é entidade, não quatro colunas
@@ -529,6 +536,85 @@ maquininha, é aqui que o estorno será pedido ao provedor.
 altera o total) e cancelamento de venda (cliente → loja, `origemId` nulo, entra de fora). Na
 identidade contábil só a segunda conta.
 
+### A porta de pagamento
+
+`ProvedorPagamento` é o que o Mercalya precisa de **qualquer** maquininha: `iniciar`,
+`consultar`, `abortar`, `estornar`. O vocabulário é nosso; um adaptador traduz de e para o
+provedor real. O resto do sistema — venda, estoque, totem — fala só esta interface, e é o que
+permite trocar Mercado Pago por TEF sem tocar neles.
+
+O que **não** cabe na porta, de propósito: parcelamento com juros de quem, janela de
+estorno, Pix no visor ou na tela. Isso vaza de provedor para provedor e fica dentro de cada
+adaptador, exposto pelo `retornoBruto` quando importa.
+
+O registro (`ProvedoresPagamento.obter(empresaId, nome)`) já recebe o `empresaId`: quando
+existir o provedor real, é aí que entra a credencial **por lojista**, sem mudar quem chama.
+
+### A maquininha que não existe
+
+`ProvedorSimulado` comporta-se como um terminal: a intenção nasce pendente e fica assim até o
+cliente "aproximar o cartão" — `POST /pagamentos/:id/simulador/aprovar` — ou até um atraso
+configurável (`PAGAMENTO_SIMULADO_ATRASO_MS`, 3s), quando decide sozinha pelos centavos do
+valor, como os cartões de teste dos gateways: `.99` recusa, `.98` nunca responde, o resto
+aprova.
+
+O estado vive em memória de propósito. Reiniciar a API "perde" as intenções, e consultar
+uma referência desconhecida devolve `expirado` — o mesmo que um provedor real faz com uma
+ordem que não reconhece. A conciliação precisa lidar com isso; o simulador não esconde.
+
+O `retornoBruto` segue o formato da Orders API do Mercado Pago Point (`type: "point"`,
+`status: at_terminal | processed | canceled | expired | refunded`, `transactions.payments`),
+para o adaptador real entrar no lugar sem o resto notar.
+
+### Venda aberta: dois passos, duas transações
+
+O totem faz `abrir` (carrinho: preços congelados, estoque intacto), depois
+`adicionarPagamento` com um provedor. O pagamento é gravado **pendente** dentro de uma
+transação e só então a maquininha é acionada — fora dela, porque **rede não entra em
+commit**. Se a API cair entre os dois passos, fica um pendente sem referência externa; a
+conciliação expira.
+
+Daí o totem faz polling em `GET /vendas/:id/pagamentos/:pid`, que consulta o provedor e
+aplica a resposta com um **compare-and-set**: `updateMany` com `status: PENDENTE` no `where`.
+Dois pollers sincronizando ao mesmo tempo não aplicam a aprovação duas vezes — o segundo
+espera o lock da linha, reavalia o `where` e não encontra mais pendente. É a mesma função que
+um webhook chamará.
+
+A conclusão é uma **segunda transação**, separada de propósito. "O pagamento foi aprovado"
+é um fato que precisa ficar gravado mesmo que a venda não possa concluir; e concluir usa o
+mesmo truque de lock, agora na venda: `updateMany` com `status: ABERTA` trocando para
+`CONCLUIDA`, e a baixa FEFO em seguida no mesmo commit — se a baixa falhar, a troca volta com
+ela. Dois pagamentos aprovando juntos disputam a linha da venda; um conclui, o outro não
+encontra mais ABERTA.
+
+Regras de valor: **uma maquininha por vez** (havendo pendente, aborte antes de outro
+pagamento — um cartão que aprovasse depois seria cobrança em dobro); forma que não é dinheiro
+não passa do que falta; dinheiro pode passar e vira troco na conclusão.
+
+### Aprovado sem estoque: estorna, não erra
+
+O cliente pagou, mas o último item saiu para outro carrinho enquanto o cartão processava.
+`concluir` lança `EstoqueInsuficienteException` — um `ConflictException` com tipo próprio,
+porque aqui a resposta certa não é "erro": é estornar no provedor e cancelar a venda dizendo
+por quê (`Cancelada automaticamente: Estoque insuficiente de "X"… Pagamento estornado.`).
+Há um teste com dois carrinhos disputando a única unidade.
+
+### Conciliação: o buraco do timeout
+
+O caso que quebra PDV: a maquininha aprovou, a resposta não chegou ao totem — que travou,
+reiniciou ou perdeu a rede. Pendente do nosso lado, aprovado do lado deles: dinheiro que
+entrou sem venda.
+
+A conciliação roda a cada minuto (`@Interval`, `@nestjs/schedule`) e à mão em
+`POST /vendas/conciliar`. Para cada pendente com mais de 15 segundos: pergunta ao provedor e
+aplica a resposta (aprovou → conclui a venda, assinada por "Conciliação automática"). Pendente
+há mais de **10 minutos** sem resposta é abortado no provedor e expira. Venda aberta há mais
+de **1 hora** sem pagamento pendente é carrinho abandonado: cancela, estornando o que tiver
+sido aprovado pelo caminho (o cliente pagou metade no cartão e sumiu).
+
+O relógio é parâmetro (`conciliar(empresaId, agora)`) para os testes não esperarem dez
+minutos. Uma trava impede rodadas sobrepostas quando o provedor está lento.
+
 ### Testes de integração contra o Postgres
 
 `npm test` na API roda Jest contra um banco `mercalya_test` no mesmo servidor, criado sozinho
@@ -548,7 +634,14 @@ As invariantes que antes eram verificadas à mão agora estão travadas:
 - abastecimento: `totalGlobal` antes = depois;
 - venda: baixa por FEFO com preço e custo congelados; sem saldo nada é gravado; idempotência
   sequencial e em corrida; troco só de dinheiro; cancelamento devolve aos mesmos lotes;
-  identidade `entradas − perdas − vendas + devoluções de cliente = estoque`.
+  identidade `entradas − perdas − vendas + devoluções de cliente = estoque`;
+- maquininha: abrir não toca no estoque; pendente → aprovado conclui e debita com os dados do
+  adquirente; recusa deixa a venda aberta para outra forma; uma maquininha por vez; pagamento
+  dividido; idempotência do pagamento; quatro pollers simultâneos aplicam a aprovação uma vez;
+  aprovado sem estoque estorna e cancela; cancelar estorna/aborta no provedor;
+- conciliação: ignora o recém-nascido, conclui o aprovado que o totem perdeu, expira o `.98`
+  aos 10 minutos abortando no provedor, expira o que nunca chegou ao provedor, cancela e
+  estorna o abandonado à 1 hora, não enxerga outra empresa.
 
 ### As 94 vendas debitam estoque
 
@@ -709,12 +802,13 @@ token da sessão, e só o AuthService o toca.
 
 Todo o sistema é servido pela API. O que resta são funcionalidades novas, não migração:
 
-1. **PDV — próximas fases.** A escrita de venda existe (`POST /api/vendas`) e o ciclo
-   compra → estoque → loja → venda → baixa fecha. Faltam, nesta ordem: a **porta de
-   pagamento** (interface iniciar/consultar/abortar/estornar) com um **adaptador simulado**
-   e a **conciliação** de pendentes; a **tela do totem** de autoatendimento, fora do
-   `AppShell`; e só então o **provedor real** (Mercado Pago Point), com credenciais por
-   empresa. O estado `ABERTA` e a separação `abrir`/`concluir` já são o encaixe.
+1. **PDV — próximas fases.** A API do totem está completa e testada com a maquininha
+   simulada: abrir carrinho, pagamento pendente, polling, conclusão, estorno automático,
+   conciliação. Faltam, nesta ordem: a **tela do totem** de autoatendimento, fora do
+   `AppShell` (a API já devolve o que ela precisa a cada polling); e só então o **provedor
+   real** (Mercado Pago Point) — um adaptador novo em `pagamentos/`, credenciais por empresa
+   em `ProvedoresPagamento.obter(empresaId, nome)`, e um endpoint de webhook que chama a
+   mesma `sincronizarPagamento` que o polling chama.
 2. **Fiscal (NFC-e / SAT)** — venda a consumidor final exige documento fiscal. Para uso
    interno dá para adiar; para vender a terceiros é bloqueante, e acopla com `Venda` e
    `Pagamento`.

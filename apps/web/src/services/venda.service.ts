@@ -1,10 +1,14 @@
 import type {
+  AberturaVenda,
   ConsultaBase,
   EventoVenda,
   FormaPagamentoVenda,
   ID,
   NovaVenda,
+  NovoPagamento,
   Paginado,
+  ResumoConciliacao,
+  SituacaoPagamentoVenda,
   StatusVenda,
   VendaListItem,
 } from '@/models'
@@ -66,6 +70,41 @@ export const VendaService = {
   /** Devolve a mercadoria à prateleira nos mesmos lotes e estorna os pagamentos. */
   async cancelar(id: ID, motivo?: string): Promise<VendaListItem> {
     return chamarApi(`/vendas/${id}/cancelar`, { metodo: 'POST', corpo: { motivo } })
+  },
+
+  /* ------------------------- fluxo do totem ------------------------- */
+
+  /** Abre o carrinho: itens e preços congelados, estoque intacto, sem pagamento. */
+  async abrir(abertura: AberturaVenda): Promise<{ venda: VendaListItem; repetida: boolean }> {
+    return chamarApi('/vendas/abrir', { metodo: 'POST', corpo: abertura })
+  },
+
+  /**
+   * Adiciona um pagamento à venda aberta. Manual conclui na hora se cobrir o
+   * total; por provedor nasce pendente — acompanhe com `sincronizarPagamento`.
+   */
+  async adicionarPagamento(vendaId: ID, novo: NovoPagamento): Promise<SituacaoPagamentoVenda> {
+    return chamarApi(`/vendas/${vendaId}/pagamentos`, { metodo: 'POST', corpo: novo })
+  },
+
+  /** O polling do totem: consulta a maquininha e conclui a venda quando coberta. */
+  async sincronizarPagamento(vendaId: ID, pagamentoId: ID): Promise<SituacaoPagamentoVenda> {
+    return chamarApi(`/vendas/${vendaId}/pagamentos/${pagamentoId}`)
+  },
+
+  /** O cliente desistiu antes de aproximar o cartão. */
+  async abortarPagamento(vendaId: ID, pagamentoId: ID): Promise<SituacaoPagamentoVenda> {
+    return chamarApi(`/vendas/${vendaId}/pagamentos/${pagamentoId}/abortar`, { metodo: 'POST' })
+  },
+
+  /** Roda a conciliação agora. Ela também roda sozinha a cada minuto. */
+  async conciliar(): Promise<ResumoConciliacao> {
+    return chamarApi('/vendas/conciliar', { metodo: 'POST' })
+  },
+
+  /** Controle da maquininha simulada: o cliente aproximou o cartão (ou o emissor recusou). */
+  async simular(pagamentoId: ID, desfecho: 'aprovar' | 'recusar'): Promise<{ status: string }> {
+    return chamarApi(`/pagamentos/${pagamentoId}/simulador/${desfecho}`, { metodo: 'POST' })
   },
 
   async listar(consulta: ConsultaVendas = {}): Promise<Paginado<VendaListItem>> {

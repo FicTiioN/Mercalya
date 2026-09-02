@@ -58,7 +58,9 @@ O fluxo abaixo funciona de ponta a ponta e os saldos se mantêm coerentes:
 5. **Registrar perda** → reduz o estoque e gera `PERDA`.
 6. **Vender** (`POST /api/vendas`) → congela o preço da loja, grava os pagamentos e debita a
    prateleira por FEFO em uma transação; gera `VENDA`. **Cancelar** devolve aos mesmos
-   lotes e estorna. A tela do totem ainda não existe — por enquanto é via API.
+   lotes e estorna. No fluxo do totem (`/vendas/abrir` → `/pagamentos` → polling) a
+   **maquininha simulada** aprova, recusa ou fica muda, e a **conciliação** fecha o que o
+   totem perdeu. A tela do totem ainda não existe — por enquanto é via API.
 7. **Movimentações** e **Painel gerencial** refletem tudo isso.
 
 Os dados ficam no Postgres. Para voltar ao estado inicial: `npm run db:seed` (apaga e recria
@@ -103,8 +105,9 @@ contábil — que antes eram verificadas à mão.
 - **Abastecimento** e o seletor de loja assumem loja única; viram trabalho real na segunda loja.
 - Campos sem UI: `pontoCompra`, `estoqueMaximoCentral`, controle de validade, `estoqueIdeal`.
 - Compras não têm edição, cancelamento, devolução ao fornecedor nem contas a pagar.
-- Vendas: registro e cancelamento existem na API, mas não há tela — o totem de
-  autoatendimento é a próxima fase do PDV.
+- Vendas: a API do totem está completa (carrinho, maquininha simulada, polling, conciliação),
+  mas não há tela — o totem de autoatendimento é a próxima fase do PDV. O provedor real
+  (Mercado Pago Point) entra depois, como mais um adaptador.
 - Exportações são apenas toast.
 
 ## Contas de demonstração

@@ -601,18 +601,51 @@ export interface Venda {
   idInterno: string
 }
 
-/** O que o PDV envia para registrar uma venda. Preço não vai: a API lê da loja. */
-export interface NovaVenda {
+/** O carrinho: o que abre uma venda. Preço não vai — a API lê da loja. */
+export interface AberturaVenda {
   /** Sem loja, a API usa a primeira ativa da empresa. */
   lojaId?: ID
   clienteId?: ID
   clienteNome?: string
   itens: Array<{ produtoId: ID; quantidade: number }>
-  pagamentos: Array<{ forma: FormaPagamentoVenda; valor: number; parcelas?: number }>
   desconto?: number
   observacao?: string
   /** Reenviar com a mesma chave devolve a mesma venda, sem segunda baixa. */
   chaveIdempotencia?: string
+}
+
+/** Venda já paga em uma chamada — o caminho do balcão. */
+export interface NovaVenda extends AberturaVenda {
+  pagamentos: Array<{ forma: FormaPagamentoVenda; valor: number; parcelas?: number }>
+}
+
+/**
+ * Um pagamento adicionado a uma venda aberta. `provedor` ausente ou "manual"
+ * = o operador recebeu; qualquer outro nome aciona a maquininha e o pagamento
+ * nasce pendente.
+ */
+export interface NovoPagamento {
+  forma: FormaPagamentoVenda
+  valor: number
+  parcelas?: number
+  provedor?: string
+  /** Repetir a chave devolve o mesmo pagamento; a maquininha não é acionada de novo. */
+  chaveIdempotencia?: string
+}
+
+/** O que o totem recebe a cada polling: o pagamento e a venda como estão agora. */
+export interface SituacaoPagamentoVenda {
+  pagamento: Pagamento
+  venda: VendaListItem
+}
+
+export interface ResumoConciliacao {
+  verificados: number
+  aprovados: number
+  recusados: number
+  expirados: number
+  abandonadas: number
+  erros: number
 }
 
 export interface VendaListItem extends Venda {

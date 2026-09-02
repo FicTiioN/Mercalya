@@ -10,8 +10,10 @@ import { ComprasModule } from '../src/compras/compras.module'
 import { ComprasService } from '../src/compras/compras.service'
 import { VendasModule } from '../src/vendas/vendas.module'
 import { VendasService } from '../src/vendas/vendas.service'
+import { ProvedorSimulado } from '../src/pagamentos/simulado/provedor-simulado'
 import type { ItemCompraDto } from '../src/compras/dto/entrada-compra.dto'
-import type { RegistrarVendaDto } from '../src/vendas/dto/registrar-venda.dto'
+import type { AbrirVendaDto, RegistrarVendaDto } from '../src/vendas/dto/registrar-venda.dto'
+import type { NovoPagamentoDto } from '../src/vendas/dto/novo-pagamento.dto'
 
 export const OPERADOR = 'Teste'
 
@@ -39,6 +41,7 @@ export class Cenario {
     readonly estoque: EstoqueService,
     readonly compras: ComprasService,
     readonly vendas: VendasService,
+    readonly simulado: ProvedorSimulado,
     readonly empresaId: string,
     readonly lojaId: string,
     readonly centralId: string,
@@ -54,6 +57,10 @@ export class Cenario {
 
     const prisma = modulo.get(PrismaService)
     const sufixo = randomUUID().slice(0, 8)
+
+    // Terminal simulado responde na primeira consulta — o teste não espera 3s.
+    const simulado = modulo.get(ProvedorSimulado)
+    simulado.configurar({ atrasoMs: 0 })
 
     const empresa = await prisma.empresa.create({ data: { nome: `Teste ${sufixo}` } })
     const loja = await prisma.loja.create({
@@ -79,6 +86,7 @@ export class Cenario {
       modulo.get(EstoqueService),
       modulo.get(ComprasService),
       modulo.get(VendasService),
+      simulado,
       empresa.id,
       loja.id,
       central.id,
@@ -141,6 +149,32 @@ export class Cenario {
     return this.vendas.registrar(this.empresaId, OPERADOR, {
       lojaId: this.lojaId,
       ...entrada,
+    })
+  }
+
+  /* ------------------------------ totem ------------------------------ */
+
+  abrir(entrada: Omit<AbrirVendaDto, 'lojaId'> & { lojaId?: string }) {
+    return this.vendas.abrirVenda(this.empresaId, OPERADOR, { lojaId: this.lojaId, ...entrada })
+  }
+
+  pagar(vendaId: string, entrada: NovoPagamentoDto) {
+    return this.vendas.adicionarPagamento(this.empresaId, OPERADOR, vendaId, entrada)
+  }
+
+  sincronizar(vendaId: string, pagamentoId: string) {
+    return this.vendas.sincronizarPagamento(this.empresaId, OPERADOR, vendaId, pagamentoId)
+  }
+
+  abortar(vendaId: string, pagamentoId: string) {
+    return this.vendas.abortarPagamento(this.empresaId, OPERADOR, vendaId, pagamentoId)
+  }
+
+  /** Venda como está no banco, com pagamentos. */
+  venda(id: string) {
+    return this.prisma.venda.findUniqueOrThrow({
+      where: { id },
+      include: { pagamentos: { orderBy: { criadoEm: 'asc' } } },
     })
   }
 
