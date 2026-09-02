@@ -1,6 +1,15 @@
 import { useState } from 'react'
-import { Bell, Building2, Database, Palette, ShieldCheck, User } from 'lucide-react'
-import { AppSession } from '@/services'
+import {
+  Bell,
+  Building2,
+  Database,
+  ExternalLink,
+  MonitorSmartphone,
+  Palette,
+  ShieldCheck,
+  User,
+} from 'lucide-react'
+import { AppSession, PROVEDOR_PAGAMENTO } from '@/services'
 import { PageContainer } from '@/components/layout/AppShell'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { SectionCard } from '@/components/ui/Card'
@@ -52,6 +61,38 @@ export function ConfiguracoesPage() {
         </SectionCard>
 
         <CatalogoSection />
+
+        <SectionCard
+          icone={<MonitorSmartphone className="h-5 w-5" strokeWidth={1.75} />}
+          titulo="Autoatendimento"
+          descricao="O totem em que o cliente passa os produtos e paga sozinho."
+          classeCorpo="pt-5"
+        >
+          <p className="text-body text-muted">
+            Roda com este mesmo login, em tela cheia e sem menu. Abra em uma aba própria no
+            dispositivo de autoatendimento — o leitor de código de barras funciona como
+            teclado, então basta passar o produto.
+          </p>
+          <div className="mt-4">
+            <Button
+              onClick={() => window.open('/totem', '_blank', 'noopener')}
+              iconeEsquerda={<ExternalLink className="h-4 w-4" strokeWidth={1.75} />}
+            >
+              Abrir totem
+            </Button>
+          </div>
+          <p className="mt-4 text-caption text-muted">
+            Maquininha em uso: <strong className="text-ink">{PROVEDOR_PAGAMENTO}</strong>
+            {PROVEDOR_PAGAMENTO === 'simulado' && (
+              <>
+                {' '}
+                — não existe fisicamente; a própria tela do totem tem os botões para aprovar
+                ou recusar o pagamento. Troca-se por um adquirente real no ambiente
+                (<code>VITE_PROVEDOR_PAGAMENTO</code>), sem mudar o totem.
+              </>
+            )}
+          </p>
+        </SectionCard>
 
         <SectionCard
           icone={<User className="h-5 w-5" strokeWidth={1.75} />}

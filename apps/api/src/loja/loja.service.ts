@@ -34,7 +34,9 @@ export class LojaService {
       filtrados = filtrados.filter(
         (i) =>
           normalizar(i.produtoNome).includes(termo) ||
-          normalizar(i.categoriaNome).includes(termo),
+          normalizar(i.categoriaNome).includes(termo) ||
+          i.ean.includes(termo) ||
+          normalizar(i.sku).includes(termo),
       )
     }
 
@@ -225,6 +227,10 @@ export class LojaService {
           produtoId: config.produtoId,
           produtoNome: config.produto.nome,
           produtoImagem: config.produto.imagem,
+          // O totem resolve o código de barras em memória, sem ida à API por
+          // leitura — por isso o código viaja junto com a lista da loja.
+          ean: config.produto.ean ?? '',
+          sku: config.produto.sku ?? '',
           categoriaNome: config.produto.categoria?.nome ?? '—',
           quantidade,
           precoVenda: numero(config.precoVenda),

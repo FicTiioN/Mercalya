@@ -40,6 +40,13 @@ export interface ResumoVendas {
   canceladasDelta?: number
 }
 
+/**
+ * Provedor que o totem aciona. Vem do ambiente porque muda por instalação, não
+ * por código: a demonstração usa a maquininha simulada; um cliente real terá o
+ * adaptador do adquirente dele.
+ */
+export const PROVEDOR_PAGAMENTO: string = import.meta.env.VITE_PROVEDOR_PAGAMENTO || 'simulado'
+
 export const ROTULOS_PAGAMENTO: Record<FormaPagamentoVenda, string> = {
   pix: 'PIX',
   dinheiro: 'Dinheiro',

@@ -56,11 +56,11 @@ O fluxo abaixo funciona de ponta a ponta e os saldos se mantêm coerentes:
 4. **Abastecer loja** → transfere do central para a loja. O central diminui, a loja aumenta
    e **o total global permanece igual**; gera `TRANSFERENCIA`.
 5. **Registrar perda** → reduz o estoque e gera `PERDA`.
-6. **Vender** (`POST /api/vendas`) → congela o preço da loja, grava os pagamentos e debita a
-   prateleira por FEFO em uma transação; gera `VENDA`. **Cancelar** devolve aos mesmos
-   lotes e estorna. No fluxo do totem (`/vendas/abrir` → `/pagamentos` → polling) a
-   **maquininha simulada** aprova, recusa ou fica muda, e a **conciliação** fecha o que o
-   totem perdeu. A tela do totem ainda não existe — por enquanto é via API.
+6. **Vender no totem** (`/totem`, aberto por Configurações → Autoatendimento) → o cliente
+   passa o código de barras, escolhe cartão ou Pix e paga na **maquininha simulada** — a
+   própria tela tem os botões "aproximar cartão" / "emissor recusa". A venda congela o
+   preço da loja, debita a prateleira por FEFO e gera `VENDA`; **cancelar** devolve aos
+   mesmos lotes e estorna. A **conciliação** fecha o que o totem perder por queda de rede.
 7. **Movimentações** e **Painel gerencial** refletem tudo isso.
 
 Os dados ficam no Postgres. Para voltar ao estado inicial: `npm run db:seed` (apaga e recria
@@ -105,9 +105,9 @@ contábil — que antes eram verificadas à mão.
 - **Abastecimento** e o seletor de loja assumem loja única; viram trabalho real na segunda loja.
 - Campos sem UI: `pontoCompra`, `estoqueMaximoCentral`, controle de validade, `estoqueIdeal`.
 - Compras não têm edição, cancelamento, devolução ao fornecedor nem contas a pagar.
-- Vendas: a API do totem está completa (carrinho, maquininha simulada, polling, conciliação),
-  mas não há tela — o totem de autoatendimento é a próxima fase do PDV. O provedor real
-  (Mercado Pago Point) entra depois, como mais um adaptador.
+- Totem: só maquininha simulada por enquanto. O adquirente real (Mercado Pago Point) entra
+  como mais um adaptador na API, sem mudar a tela — exige CNPJ, conta e terminal.
+- Totem: não recebe dinheiro (sem operador, não há troco) e não emite documento fiscal.
 - Exportações são apenas toast.
 
 ## Contas de demonstração

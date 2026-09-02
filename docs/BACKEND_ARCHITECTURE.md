@@ -802,13 +802,12 @@ token da sessão, e só o AuthService o toca.
 
 Todo o sistema é servido pela API. O que resta são funcionalidades novas, não migração:
 
-1. **PDV — próximas fases.** A API do totem está completa e testada com a maquininha
-   simulada: abrir carrinho, pagamento pendente, polling, conclusão, estorno automático,
-   conciliação. Faltam, nesta ordem: a **tela do totem** de autoatendimento, fora do
-   `AppShell` (a API já devolve o que ela precisa a cada polling); e só então o **provedor
-   real** (Mercado Pago Point) — um adaptador novo em `pagamentos/`, credenciais por empresa
-   em `ProvedoresPagamento.obter(empresaId, nome)`, e um endpoint de webhook que chama a
-   mesma `sincronizarPagamento` que o polling chama.
+1. **PDV — provedor real.** API e tela do totem estão completas com a maquininha simulada
+   (`/totem`, ver `FRONTEND_ARCHITECTURE.md`). Falta o **adaptador do adquirente** (Mercado
+   Pago Point): um arquivo novo em `pagamentos/`, credenciais **por empresa** em
+   `ProvedoresPagamento.obter(empresaId, nome)`, e um endpoint de webhook que chama a mesma
+   `sincronizarPagamento` que o polling chama. Exige CNPJ, conta no adquirente e um
+   terminal — nada disso existe hoje. O totem não muda: troca-se `VITE_PROVEDOR_PAGAMENTO`.
 2. **Fiscal (NFC-e / SAT)** — venda a consumidor final exige documento fiscal. Para uso
    interno dá para adiar; para vender a terceiros é bloqueante, e acopla com `Venda` e
    `Pagamento`.

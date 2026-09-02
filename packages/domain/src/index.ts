@@ -321,6 +321,9 @@ export interface ItemLojaView {
   produtoId: ID
   produtoNome: string
   produtoImagem: string
+  /** Código de barras — o que o leitor do totem lê. Vazio quando o produto não tem. */
+  ean: string
+  sku: string
   categoriaNome: string
   quantidade: number
   precoVenda: number

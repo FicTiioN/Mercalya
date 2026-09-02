@@ -18,12 +18,24 @@ import { VendasPage } from '@/pages/vendas/VendasPage'
 import { VendaDetalhePage } from '@/pages/vendas/VendaDetalhePage'
 import { ConfiguracoesPage } from '@/pages/configuracoes/ConfiguracoesPage'
 import { LoginPage } from '@/pages/login/LoginPage'
+import { TotemPage } from '@/pages/totem/TotemPage'
 import { NaoEncontradaPage } from '@/pages/NaoEncontradaPage'
 import { RotaProtegida } from './RotaProtegida'
 
 export const router = createBrowserRouter([
   // O login fica fora do AppShell: sem sidebar nem header.
   { path: '/login', element: <LoginPage /> },
+  // O totem também: é o cliente na frente da tela, não o operador. Exige
+  // sessão (o dispositivo entra com a conta da loja), mas não ganha item na
+  // sidebar — abre-se pela tela de Configurações ou direto pela URL.
+  {
+    path: '/totem',
+    element: (
+      <RotaProtegida>
+        <TotemPage />
+      </RotaProtegida>
+    ),
+  },
   {
     path: '/',
     // Tudo abaixo exige sessao: o porteiro confirma o token com a API antes
