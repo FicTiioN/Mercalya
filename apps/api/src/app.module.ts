@@ -14,10 +14,12 @@ import { LojasModule } from './lojas/lojas.module'
 import { VendasModule } from './vendas/vendas.module'
 import { PainelModule } from './painel/painel.module'
 import { JwtGuard } from './auth/jwt.guard'
+import { validarAmbiente } from './config/ambiente'
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    // Configuração inválida derruba o boot aqui, antes de qualquer módulo subir.
+    ConfigModule.forRoot({ isGlobal: true, validate: validarAmbiente }),
     // Liga os @Interval — hoje só a conciliação de pagamentos, a cada minuto.
     ScheduleModule.forRoot(),
     PrismaModule,

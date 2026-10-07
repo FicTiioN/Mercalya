@@ -47,16 +47,16 @@ Legenda: 🤖 Claude · 👤 Leonardo
 - [x] 🤖 Rodar `lint`, `typecheck` e `test` e corrigir o que falhar (tudo verde: 41 testes, build ok)
 - [x] 🤖 `.nvmrc` com Node 20 e `engines` no `package.json` da raiz
 - [x] 🤖 `CHANGELOG.md`
-- [ ] 👤 Autorizar o push da branch `feat/pdv-autoatendimento` e a abertura do PR
-- [ ] 👤 Revisar e fazer o merge na `main`; criar a tag `v0.1.0`
+- [x] 👤 Autorizar o push da branch `feat/pdv-autoatendimento` e a abertura do PR
+- [x] 👤 Revisar e fazer o merge na `main`; criar a tag `v0.1.0` (PR #1, tag em 07/10)
 
 **Pronto quando:** a `main` tem todo o código e os testes passam.
 
 ### Dia 2 · sex 9/out — Travar o seed e validar a configuração
 
-- [ ] 🤖 Seed e `nova-conta` recusam rodar com `NODE_ENV=production` ou banco fora de `localhost`, salvo `PERMITIR_SEED=sim`
-- [ ] 🤖 Validação das variáveis de ambiente na subida da API (`DATABASE_URL`, `JWT_SECRET` ≥ 32 caracteres e ≠ `troque-me`, `CORS_ORIGIN` em produção)
-- [ ] 🤖 `.env.example` atualizado e testes
+- [x] 🤖 Seed e `nova-conta` recusam rodar com `NODE_ENV=production` ou banco fora de `localhost`, salvo `PERMITIR_SEED=sim`
+- [x] 🤖 Validação das variáveis de ambiente na subida da API (`DATABASE_URL`, `JWT_SECRET` ≥ 32 caracteres e ≠ `troque-me`, `CORS_ORIGIN` em produção)
+- [x] 🤖 `.env.example` atualizado e testes (14 testes novos, 55 no total)
 - [ ] 👤 Revisar o PR
 
 **Pronto quando:** `NODE_ENV=production npm run db:seed` falha sem tocar no banco.

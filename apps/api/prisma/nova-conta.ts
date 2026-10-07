@@ -1,5 +1,6 @@
 import { PrismaClient, TipoLocal } from '@prisma/client'
 import { hashSync } from 'bcryptjs'
+import { garantirBancoDeDesenvolvimento } from './guarda-ambiente'
 
 /**
  * Cria uma conta nova, **sem nenhum dado**.
@@ -23,6 +24,10 @@ function argumento(chave: string, padrao: string): string {
 }
 
 async function main() {
+  // Enquanto o cadastro self-service não existe, este script é o único jeito
+  // de criar conta — e não pode escrever em produção por engano.
+  garantirBancoDeDesenvolvimento('db:nova-conta')
+
   const nomeEmpresa = argumento('nome', 'Mercado Novo')
   const email = argumento('email', 'novo@mercalya.com.br').toLowerCase()
   const senha = argumento('senha', 'mercalya')
