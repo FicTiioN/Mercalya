@@ -125,6 +125,8 @@ npm run db:nova-conta -- --nome "Mercado X" --email dono@x.com --senha 123456
 
 ## Documentação
 
+- [`docs/PLANO_PRODUCAO.md`](docs/PLANO_PRODUCAO.md) — plano até a produção: o que o Claude
+  desenvolve, o que o Leonardo faz e o checklist de cada dia.
 - [`docs/VISUAL_REFERENCE_AUDIT.md`](docs/VISUAL_REFERENCE_AUDIT.md) — auditoria das
   referências visuais, tokens, componentes identificados e divergências resolvidas.
 - [`docs/FRONTEND_ARCHITECTURE.md`](docs/FRONTEND_ARCHITECTURE.md) — shell, rotas, Services,
