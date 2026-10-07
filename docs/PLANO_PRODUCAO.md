@@ -44,9 +44,9 @@ Legenda: 🤖 Claude · 👤 Leonardo
 
 ### Dia 1 · qui 8/out — Consolidar o código
 
-- [ ] 🤖 Rodar `lint`, `typecheck` e `test` e corrigir o que falhar
-- [ ] 🤖 `.nvmrc` com Node 20 e `engines` no `package.json` da raiz
-- [ ] 🤖 `CHANGELOG.md`
+- [x] 🤖 Rodar `lint`, `typecheck` e `test` e corrigir o que falhar (tudo verde: 41 testes, build ok)
+- [x] 🤖 `.nvmrc` com Node 20 e `engines` no `package.json` da raiz
+- [x] 🤖 `CHANGELOG.md`
 - [ ] 👤 Autorizar o push da branch `feat/pdv-autoatendimento` e a abertura do PR
 - [ ] 👤 Revisar e fazer o merge na `main`; criar a tag `v0.1.0`
 
