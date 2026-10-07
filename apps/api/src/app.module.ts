@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common'
 import { APP_GUARD } from '@nestjs/core'
 import { ConfigModule } from '@nestjs/config'
 import { ScheduleModule } from '@nestjs/schedule'
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler'
 import { PrismaModule } from './prisma/prisma.module'
 import { HealthModule } from './health/health.module'
 import { AuthModule } from './auth/auth.module'
@@ -15,6 +16,7 @@ import { VendasModule } from './vendas/vendas.module'
 import { PainelModule } from './painel/painel.module'
 import { JwtGuard } from './auth/jwt.guard'
 import { validarAmbiente } from './config/ambiente'
+import { opcoesLimiteRequisicoes } from './seguranca/limite-requisicoes'
 
 @Module({
   imports: [
@@ -22,6 +24,7 @@ import { validarAmbiente } from './config/ambiente'
     ConfigModule.forRoot({ isGlobal: true, validate: validarAmbiente }),
     // Liga os @Interval — hoje só a conciliação de pagamentos, a cada minuto.
     ScheduleModule.forRoot(),
+    ThrottlerModule.forRoot(opcoesLimiteRequisicoes),
     PrismaModule,
     AuthModule,
     ProdutosModule,
@@ -35,6 +38,9 @@ import { validarAmbiente } from './config/ambiente'
     HealthModule,
   ],
   providers: [
+    // A ordem importa: o limite roda antes do token, senão requisição sem
+    // token (inclusive o login) passaria sem ser contada.
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
     // Guard global: toda rota exige token, exceto as marcadas com @Publico().
     { provide: APP_GUARD, useClass: JwtGuard },
   ],

@@ -57,15 +57,15 @@ Legenda: 🤖 Claude · 👤 Leonardo
 - [x] 🤖 Seed e `nova-conta` recusam rodar com `NODE_ENV=production` ou banco fora de `localhost`, salvo `PERMITIR_SEED=sim`
 - [x] 🤖 Validação das variáveis de ambiente na subida da API (`DATABASE_URL`, `JWT_SECRET` ≥ 32 caracteres e ≠ `troque-me`, `CORS_ORIGIN` em produção)
 - [x] 🤖 `.env.example` atualizado e testes (14 testes novos, 55 no total)
-- [ ] 👤 Revisar o PR
+- [x] 👤 Revisar o PR
 
 **Pronto quando:** `NODE_ENV=production npm run db:seed` falha sem tocar no banco.
 
 ### Dia 3 · ter 13/out — Segurança básica da API
 
-- [ ] 🤖 `@nestjs/throttler`: 5 tentativas de login por minuto (IP + e-mail) e limite geral
-- [ ] 🤖 `helmet`, limite de corpo (1 MB), `trust proxy`
-- [ ] 🤖 Testes: 6ª tentativa retorna `429`; cabeçalhos de segurança presentes
+- [x] 🤖 `@nestjs/throttler`: 5 tentativas de login por minuto (IP + e-mail) e limite geral
+- [x] 🤖 `helmet`, limite de corpo (1 MB), `trust proxy`
+- [x] 🤖 Testes: 6ª tentativa retorna `429`; cabeçalhos de segurança presentes (7 testes novos, 62 no total)
 - [ ] 👤 Revisar o PR
 
 ### Dia 4 · qua 14/out — Empacotar a aplicação
@@ -147,7 +147,7 @@ monta a comparação para a decisão.
 ## Critérios para encerrar a Fase 0
 
 - [ ] Código na `main` com tag `v0.1.0`, CI obrigatório e `main` protegida
-- [ ] Seed e `nova-conta` travados fora de dev
+- [x] Seed e `nova-conta` travados fora de dev
 - [ ] Login com limite de tentativas, `helmet` ativo
 - [ ] Totem com token de dispositivo revogável
 - [ ] Staging no ar com HTTPS e deploy automático

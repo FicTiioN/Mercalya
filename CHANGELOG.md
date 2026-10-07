@@ -15,9 +15,19 @@ a tag, a seção vira a versão nova.
   produção, a API não sobe com `JWT_SECRET` de exemplo ou com menos de 32 caracteres, nem
   sem `CORS_ORIGIN`. Em desenvolvimento, os mesmos problemas viram aviso. Todos os erros
   aparecem de uma vez, sem expor valores.
-- `NODE_ENV` e `PERMITIR_SEED` documentados no `.env.example`.
+- `NODE_ENV`, `PERMITIR_SEED` e `TRUST_PROXY` documentados no `.env.example`.
+- Testes HTTP que montam a aplicação como o `main.ts` monta (`supertest`), com a
+  configuração compartilhada em `src/configurar-app.ts`.
 
 ### Segurança
+
+- Limite de tentativas de login: 5 por minuto para a mesma conta a partir do mesmo IP
+  (depois disso, bloqueio de 5 minutos) e 30 por minuto por IP. As demais rotas têm
+  limite geral de 300 por minuto por IP; o health check fica de fora. O contador é em
+  memória, por instância.
+- Cabeçalhos de segurança com `helmet` e sem `X-Powered-By`.
+- Corpo JSON limitado a 1 MB de forma explícita.
+- `TRUST_PROXY` define quantos proxies são confiáveis para obter o IP real do cliente.
 
 - `db:seed` e `db:nova-conta` recusam rodar com `NODE_ENV=production` ou com banco fora
   de `localhost`, a menos que `PERMITIR_SEED=sim` seja informado no próprio comando. Antes,
