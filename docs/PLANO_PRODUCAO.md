@@ -80,8 +80,8 @@ Legenda: 🤖 Claude · 👤 Leonardo
 
 ### Dia 5 · qui 15/out — Integração contínua
 
-- [ ] 🤖 `.github/workflows/ci.yml` (lint, typecheck, testes com Postgres, build da imagem)
-- [ ] 🤖 Configuração do Dependabot
+- [x] 🤖 `.github/workflows/ci.yml` (lint, typecheck, testes com Postgres, build da imagem)
+- [x] 🤖 Configuração do Dependabot
 - [ ] 👤 Ativar a proteção da `main` no GitHub (merge só com CI verde)
 - [ ] 👤 Decidir hospedagem, fila e ferramenta de logs
 
@@ -122,9 +122,10 @@ Legenda: 🤖 Claude · 👤 Leonardo
 - [ ] 🤖 Token de dispositivo com escopo só de venda; revogação
 - [ ] 🤖 Tela de dispositivos em Configurações → Autoatendimento
 - [ ] 🤖 Testes: `403` fora do escopo, `401` com token revogado
+- [ ] 🤖 Simulador de pagamento desligado por padrão em produção: variável na API que só o staging liga; com ela desligada, o provedor `simulado` e as rotas `/pagamentos/:id/simulador/*` não existem, e o build de produção do web não cai em `simulado` (achado do Dia 4)
 - [ ] 👤 Parear um tablet ou navegador e confirmar o totem sem login de administrador
 
-**Pronto quando:** o `/totem` funciona sem a conta do administrador.
+**Pronto quando:** o `/totem` funciona sem a conta do administrador e, em produção, nenhum pagamento pode ser aprovado pelo simulador.
 
 ---
 
@@ -148,8 +149,9 @@ monta a comparação para a decisão.
 
 - [ ] Código na `main` com tag `v0.1.0`, CI obrigatório e `main` protegida
 - [x] Seed e `nova-conta` travados fora de dev
-- [ ] Login com limite de tentativas, `helmet` ativo
+- [x] Login com limite de tentativas, `helmet` ativo
 - [ ] Totem com token de dispositivo revogável
+- [ ] Simulador de pagamento impossível de usar em produção
 - [ ] Staging no ar com HTTPS e deploy automático
 - [ ] Backup com PITR e uma restauração cronometrada
 - [ ] Erros no Sentry, logs em JSON sem dados sensíveis, alerta de indisponibilidade
@@ -159,3 +161,10 @@ monta a comparação para a decisão.
 
 **Depois da Fase 0:** Fase 1 (usuários e papéis, recuperação de senha, e-mail
 transacional, termos e LGPD) e, com CNPJ e piloto, Fase 2 (fiscal NFC-e).
+
+**Proposto durante a execução (a confirmar):**
+
+- [ ] 🤖 Atualizar NestJS 10 → 11 ou 12 e React Router 6 → 7. O NestJS 10.4.22 é a última
+  versão da série 10, e as vulnerabilidades restantes do `npm audit` (`@nestjs/*`,
+  `body-parser`, `multer`, `lodash`, `qs`, `react-router`) só saem com essa atualização.
+  Estimativa: 1 a 2 dias, de preferência antes do primeiro cliente real. (achado do Dia 5)

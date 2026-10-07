@@ -18,12 +18,15 @@ a tag, a seção vira a versão nova.
 - `NODE_ENV`, `PERMITIR_SEED` e `TRUST_PROXY` documentados no `.env.example`.
 - Testes HTTP que montam a aplicação como o `main.ts` monta (`supertest`), com a
   configuração compartilhada em `src/configurar-app.ts`.
-
 - Imagens Docker de produção: `apps/api/Dockerfile` (multi-stage, aplica
   `migrate deploy` ao subir, sem root, com healthcheck) e `apps/web/Dockerfile` (nginx com
   fallback de SPA e cache longo para `/assets`).
 - `docker-compose.prod.yml` para ensaiar a produção localmente, com banco próprio.
 - Scripts `start:prod` e `db:migrate:deploy` na API, para hospedagens sem Docker.
+- CI no GitHub Actions (`.github/workflows/ci.yml`): lint, typecheck, testes contra
+  Postgres, build e compilação das duas imagens Docker em todo PR e push na `main`.
+- Dependabot (`.github/dependabot.yml`): npm toda semana, com minors e patches agrupados;
+  GitHub Actions e imagens base do Docker uma vez por mês.
 
 ### Alterado
 
@@ -40,10 +43,12 @@ a tag, a seção vira a versão nova.
 - Cabeçalhos de segurança com `helmet` e sem `X-Powered-By`.
 - Corpo JSON limitado a 1 MB de forma explícita.
 - `TRUST_PROXY` define quantos proxies são confiáveis para obter o IP real do cliente.
-
 - `db:seed` e `db:nova-conta` recusam rodar com `NODE_ENV=production` ou com banco fora
   de `localhost`, a menos que `PERMITIR_SEED=sim` seja informado no próprio comando. Antes,
   o seed apagava todas as tabelas de qualquer banco apontado pelo `DATABASE_URL`.
+- `proxy-addr` atualizado para 2.0.8 (falsificação de IP via IPv6 mapeado, crítica).
+  As demais vulnerabilidades do `npm audit` dependem de atualizar o NestJS (10 → 11+) e o
+  React Router (6 → 7), que ficam para um item próprio do plano.
 
 ## [0.1.0] — 2026-10-07
 

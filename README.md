@@ -1,5 +1,7 @@
 # Mercalya
 
+[![CI](https://github.com/FicTiioN/Mercalya/actions/workflows/ci.yml/badge.svg)](https://github.com/FicTiioN/Mercalya/actions/workflows/ci.yml)
+
 Sistema de gestão para minimercados, mercados de condomínio, lojas autônomas e pequenos
 varejistas. Operação robusta de estoque, compras e abastecimento — sem a sensação de ERP.
 

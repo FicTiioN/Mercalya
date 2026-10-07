@@ -1,0 +1,38 @@
+# Atualizacoes automaticas de dependencias. Cada PR do Dependabot passa pelo
+# mesmo CI de qualquer outro: so entra com tudo verde e com o merge do dono.
+
+version: 2
+
+updates:
+  # Monorepo npm: o lockfile unico fica na raiz e cobre apps/* e packages/*.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+      timezone: America/Sao_Paulo
+    open-pull-requests-limit: 5
+    groups:
+      # Patches e minors juntos num PR so; major vem separado, porque pede
+      # leitura do changelog e, as vezes, codigo.
+      menores:
+        update-types: [minor, patch]
+    commit-message:
+      prefix: deps
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: ci
+
+  - package-ecosystem: docker
+    directories:
+      - /apps/api
+      - /apps/web
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: docker

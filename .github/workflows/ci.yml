@@ -1,0 +1,111 @@
+# Integracao continua: todo push na main e todo PR passam por aqui.
+#
+# A main fica protegida exigindo os dois jobs verdes ("Verificacao" e
+# "Imagens Docker"), entao nada entra sem lint, tipos, testes e build.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Um push novo no mesmo PR cancela a execucao anterior, que ja ficou velha.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Os testes dependem de "hoje" (vencimentos, painel): mesmo fuso de quem usa.
+  TZ: America/Sao_Paulo
+
+jobs:
+  verificacao:
+    name: Verificacao
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: mercalya
+          POSTGRES_PASSWORD: mercalya
+          POSTGRES_DB: mercalya
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mercalya -d mercalya"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Banco descartavel do proprio job. Os testes usam o mercalya_test,
+      # criado e migrado sozinho pela suite.
+      DATABASE_URL: postgresql://mercalya:mercalya@localhost:5432/mercalya?schema=public
+      # So existe dentro deste job, para a API de teste assinar tokens. Nao e
+      # segredo de nenhum ambiente real.
+      JWT_SECRET: ci-somente-teste-0123456789abcdef0123456789abcdef
+      # O build de producao do web exige a URL da API. Aqui so importa compilar.
+      VITE_API_URL: https://api.exemplo.invalid/api
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Gerar o client do Prisma
+        run: npm run prisma:generate --workspace @mercalya/api
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Testes
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+  imagens:
+    name: Imagens Docker
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # So compila: publicar imagem entra junto com o deploy (Dia 7).
+      - name: Imagem da API
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: false
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
+
+      - name: Imagem do frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: false
+          build-args: |
+            VITE_API_URL=https://api.exemplo.invalid/api
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
