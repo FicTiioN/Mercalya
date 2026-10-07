@@ -39,6 +39,7 @@ Abre em <http://localhost:5173>.
 | `npm run build` | typecheck + build de produção |
 | `npm run lint` | ESLint em todos os workspaces (zero warnings) |
 | `npm run typecheck` | TypeScript em todos os workspaces |
+| `npm test` | testes de integração da API contra um Postgres real (`mercalya_test`) |
 | `npm run dev:api` | API NestJS em <http://localhost:3000/api> |
 | `npm run db:up` / `db:down` | Postgres via docker-compose |
 | `npm run db:migrate` | aplica as migrações |
@@ -55,10 +56,15 @@ O fluxo abaixo funciona de ponta a ponta e os saldos se mantêm coerentes:
 4. **Abastecer loja** → transfere do central para a loja. O central diminui, a loja aumenta
    e **o total global permanece igual**; gera `TRANSFERENCIA`.
 5. **Registrar perda** → reduz o estoque e gera `PERDA`.
-6. **Movimentações** e **Painel gerencial** refletem tudo isso.
+6. **Vender no totem** (`/totem`, aberto por Configurações → Autoatendimento) → o cliente
+   passa o código de barras, escolhe cartão ou Pix e paga na **maquininha simulada** — a
+   própria tela tem os botões "aproximar cartão" / "emissor recusa". A venda congela o
+   preço da loja, debita a prateleira por FEFO e gera `VENDA`; **cancelar** devolve aos
+   mesmos lotes e estorna. A **conciliação** fecha o que o totem perder por queda de rede.
+7. **Movimentações** e **Painel gerencial** refletem tudo isso.
 
-Os dados ficam salvos no navegador. Para voltar ao estado inicial: menu do usuário →
-*Restaurar dados* (ou em **Configurações**).
+Os dados ficam no Postgres. Para voltar ao estado inicial: `npm run db:seed` (apaga e recria
+a base de demonstração — inclusive outras contas criadas com `db:nova-conta`).
 
 ## Decisões de domínio já tomadas
 
@@ -66,7 +72,7 @@ Definidas antes de modelar o banco, porque afetam o schema:
 
 | Tema | Decisão |
 |---|---|
-| **Multi-loja** | Uma empresa tem N lojas. O estoque central é **único por empresa** e abastece todas. Central por loja fica para uma segunda fase. |
+| **Multi-loja** | Uma empresa tem N lojas, geridas em Configurações → Lojas e trocadas pelo menu da conta. O estoque central é **único por empresa** e abastece todas. Central por loja fica para uma segunda fase. |
 | **Venda** | Debita o estoque **da loja** e registra movimentação. |
 | **Usuários** | Só administrador nesta fase — mas `usuario` já nasce com `papel` e `empresa_id`. |
 | **Cliente** | Entidade própria, **sem campos obrigatórios**. Documento e telefone únicos quando preenchidos, para permitir deduplicar depois. |
@@ -86,14 +92,21 @@ npm run dev:api
 O app exige login: `admin@mercalya.com.br` / `mercalya`. **Com a API fora do ar não dá
 para entrar** — a autenticação é real.
 
+Os testes de integração (`npm test`) rodam contra um banco `mercalya_test` no mesmo Postgres,
+criado e migrado sozinho na primeira execução. Eles travam as invariantes do núcleo — saldo
+nunca negativo, FEFO, custo médio, transação atômica, idempotência da venda, identidade
+contábil — que antes eram verificadas à mão.
+
 > Esta máquina já roda um **Postgres nativo na 5432**, então o `docker-compose`
 > publica a **5433**. As duas URLs estão prontas em `apps/api/.env.example`.
 
 ## Pendências conhecidas do frontend
 
-- **Abastecimento** e o seletor de loja assumem loja única; viram trabalho real na segunda loja.
 - Campos sem UI: `pontoCompra`, `estoqueMaximoCentral`, controle de validade, `estoqueIdeal`.
 - Compras não têm edição, cancelamento, devolução ao fornecedor nem contas a pagar.
+- Totem: só maquininha simulada por enquanto. O adquirente real (Mercado Pago Point) entra
+  como mais um adaptador na API, sem mudar a tela — exige CNPJ, conta e terminal.
+- Totem: não recebe dinheiro (sem operador, não há troco) e não emite documento fiscal.
 - Exportações são apenas toast.
 
 ## Contas de demonstração
@@ -112,6 +125,8 @@ npm run db:nova-conta -- --nome "Mercado X" --email dono@x.com --senha 123456
 
 ## Documentação
 
+- [`docs/PLANO_PRODUCAO.md`](docs/PLANO_PRODUCAO.md) — plano até a produção: o que o Claude
+  desenvolve, o que o Leonardo faz e o checklist de cada dia.
 - [`docs/VISUAL_REFERENCE_AUDIT.md`](docs/VISUAL_REFERENCE_AUDIT.md) — auditoria das
   referências visuais, tokens, componentes identificados e divergências resolvidas.
 - [`docs/FRONTEND_ARCHITECTURE.md`](docs/FRONTEND_ARCHITECTURE.md) — shell, rotas, Services,

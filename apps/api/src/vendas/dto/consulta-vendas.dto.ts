@@ -2,7 +2,8 @@ import { Type } from 'class-transformer'
 import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator'
 
 const FORMAS = ['todas', 'pix', 'dinheiro', 'cartao-debito', 'cartao-credito'] as const
-const STATUS = ['todos', 'concluida', 'cancelada'] as const
+// "todos" não inclui aberta: carrinho aguardando pagamento ainda não é venda.
+const STATUS = ['todos', 'aberta', 'concluida', 'cancelada'] as const
 
 export class ConsultaVendasDto {
   @IsOptional() @IsString() busca?: string

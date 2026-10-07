@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { useToast } from '@/components/ui/toast-context'
 import { useAtalhos } from '@/lib/useAtalhos'
+import { useLojaAtual } from '@/lib/useLojaAtual'
 import { AppSession } from '@/services'
 import { AtalhosDialog } from './AjudaMenu'
 import { AppHeader } from './AppHeader'
@@ -14,6 +15,9 @@ export function AppShell() {
   const [atalhosAbertos, setAtalhosAbertos] = useState(false)
 
   const usuario = AppSession.usuarioAtual()
+  // Trocar de loja remonta a página: cada tela recarrega os dados da loja nova
+  // sem precisar saber que existe um seletor.
+  const lojaId = useLojaAtual()
 
   const abrirAtalhos = useCallback(() => setAtalhosAbertos(true), [])
   useAtalhos(abrirAtalhos)
@@ -32,7 +36,7 @@ export function AppShell() {
           aoAvisar={(titulo, descricao) => toast.info(titulo, descricao)}
         />
 
-        <main key={pathname} className="min-w-0 flex-1 animate-fade-in">
+        <main key={`${pathname}:${lojaId}`} className="min-w-0 flex-1 animate-fade-in">
           <Outlet />
         </main>
       </div>

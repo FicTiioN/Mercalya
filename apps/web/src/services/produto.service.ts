@@ -10,6 +10,7 @@ import type {
 } from '@/models'
 import { ErroDeNegocio } from './api'
 import { ErroApi, requisitar } from './http'
+import { AppSession } from './sessao'
 
 /**
  * Catálogo de produtos — **primeiro módulo servido pela API real**.
@@ -105,7 +106,7 @@ function consultaEmQuery(consulta: ConsultaProdutos): string {
   adicionar('status', consulta.status, 'todos')
   adicionar('estoque', consulta.estoque, 'todos')
   adicionar('ordenar', consulta.ordenar)
-  adicionar('lojaId', consulta.lojaId)
+  adicionar('lojaId', consulta.lojaId ?? AppSession.lojaAtualId())
   adicionar('pagina', consulta.pagina)
   adicionar('porPagina', consulta.porPagina)
 
@@ -119,10 +120,10 @@ export const ProdutoService = {
   },
 
   async resumo(): Promise<ResumoProdutos> {
-    return chamar('/produtos/resumo')
+    return chamar(`/produtos/resumo?lojaId=${encodeURIComponent(AppSession.lojaAtualId())}`)
   },
 
-  async obter(id: ID, lojaId?: string): Promise<ProdutoListItem> {
+  async obter(id: ID, lojaId = AppSession.lojaAtualId()): Promise<ProdutoListItem> {
     return chamar(`/produtos/${id}${lojaId ? `?lojaId=${encodeURIComponent(lojaId)}` : ''}`)
   },
 

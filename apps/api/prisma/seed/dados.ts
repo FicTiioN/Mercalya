@@ -329,7 +329,7 @@ const clientesVenda = [
   'Consumidor final', 'Consumidor final',
 ]
 const operadoresVenda = ['João Silva', 'Ana Paula', 'Mariana Costa']
-const formasPagamentoVenda: Venda['pagamento']['forma'][] = [
+const formasPagamentoVenda: Venda['pagamentos'][number]['forma'][] = [
   'pix', 'pix', 'pix', 'pix', 'dinheiro', 'dinheiro',
   'cartao-credito', 'cartao-credito', 'cartao-debito',
 ]
@@ -405,17 +405,31 @@ export const vendas: Venda[] = Array.from({ length: TOTAL_VENDAS }, (_, indice) 
     desconto,
     acrescimo: 0,
     total,
-    pagamento: {
-      forma,
-      valorPago,
-      status: cancelada ? 'recusado' : 'aprovado',
-      quando: registradoEm,
-    },
+    // Um pagamento manual por venda: o histórico de demonstração antecede a
+    // maquininha. Venda cancelada é a que teve o pagamento recusado.
+    pagamentos: [
+      {
+        id: `pag-${String(indice + 1).padStart(4, '0')}`,
+        forma,
+        valor: valorPago,
+        status: cancelada ? 'recusado' : 'aprovado',
+        parcelas: 1,
+        provedor: 'manual',
+        autorizacao: '',
+        nsu: '',
+        bandeira: '',
+        ultimosDigitos: '',
+        motivoRecusa: cancelada ? 'Pagamento não aprovado pelo emissor.' : '',
+        criadoEm: registradoEm,
+        confirmadoEm: registradoEm,
+      },
+    ],
     troco: forma === 'dinheiro' ? arredondar2(valorPago - total) : 0,
     tipoVenda: 'Venda presencial',
     canal: 'PDV',
     observacao: '',
     status: cancelada ? 'cancelada' : 'concluida',
+    concluidaEm: cancelada ? null : registradoEm,
     registradoEm,
     atualizadoEm: atualizado.toISOString(),
     idInterno: idInterno(),

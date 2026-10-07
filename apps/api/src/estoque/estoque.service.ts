@@ -242,8 +242,8 @@ export class EstoqueService {
     return lista.sort((a, b) => b.quantidadeSugerida - a.quantidadeSugerida)
   }
 
-  async resumoSugestoes(empresaId: string) {
-    const sugestoes = await this.sugestoes(empresaId)
+  async resumoSugestoes(empresaId: string, lojaId?: string) {
+    const sugestoes = await this.sugestoes(empresaId, lojaId)
     return {
       totalItens: sugestoes.reduce((acc, s) => acc + s.quantidadeSugerida, 0),
       valorEstimado: Number(sugestoes.reduce((acc, s) => acc + s.valorEstimado, 0).toFixed(2)),

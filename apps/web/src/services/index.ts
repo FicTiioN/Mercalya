@@ -1,6 +1,5 @@
-import { AuthService } from './auth.service'
-
 export { ErroDeNegocio } from './api'
+export { AppSession } from './sessao'
 export { ErroApi } from './http'
 export { AuthService } from './auth.service'
 export { CatalogoService } from './catalogo.service'
@@ -60,54 +59,7 @@ export { InicioService } from './inicio.service'
 export type { Dica } from './inicio.service'
 export { NotificacaoService } from './notificacao.service'
 export type { ResumoNotificacoes } from './notificacao.service'
-export { ROTULOS_PAGAMENTO, VendaService } from './venda.service'
+export { PROVEDOR_PAGAMENTO, ROTULOS_PAGAMENTO, VendaService } from './venda.service'
 export type { ConsultaVendas, ResumoVendas } from './venda.service'
 export { PainelService } from './painel.service'
 export type { FiltroPainel } from './painel.service'
-
-/**
- * Sessão da aplicação.
- *
- * Lia um repositório em `localStorage`, que pertence ao **navegador** e não à
- * conta — por isso mostrava a loja de outra empresa no shell e em
- * Configurações. Agora tudo vem da sessão autenticada.
- *
- * Os componentes continuam sem tocar em armazenamento: quem persiste é o
- * AuthService.
- */
-export const AppSession = {
-  usuarioAtual() {
-    const sessao = AuthService.sessaoAtual()
-    return (
-      sessao?.usuario ?? { nome: '', iniciais: '', funcao: '', email: '' }
-    )
-  },
-
-  empresaAtual(): string | null {
-    return AuthService.sessaoAtual()?.empresa.nome ?? null
-  },
-
-  /** Lojas às quais o usuário tem acesso, marcando a que está em contexto. */
-  lojasDisponiveis(): Array<{ id: string; nome: string; condominio: string; ativa: boolean }> {
-    const lojas = AuthService.sessaoAtual()?.lojas ?? []
-    return lojas.map((loja, indice) => ({
-      id: loja.id,
-      nome: loja.nome,
-      condominio: loja.condominio,
-      // Sem seletor de loja ainda: a primeira é a que está em uso.
-      ativa: indice === 0,
-    }))
-  },
-
-  condominioAtual(): string {
-    return AuthService.sessaoAtual()?.lojas[0]?.condominio ?? ''
-  },
-
-  lojaAtualId(): string {
-    return AuthService.sessaoAtual()?.lojas[0]?.id ?? ''
-  },
-
-  lojaAtual(): string {
-    return AuthService.sessaoAtual()?.lojas[0]?.nome ?? ''
-  },
-}

@@ -57,10 +57,13 @@ export class AuthService {
         where: { id: empresaId },
         select: { id: true, nome: true },
       }),
+      // Da mais antiga para a mais nova, não por nome: a primeira é a loja
+      // padrão do navegador sem escolha e da API sem `lojaId` — criar uma loja
+      // chamada "Anexo" não pode mudar onde as vendas caem.
       this.prisma.loja.findMany({
         where: { empresaId, ativa: true },
         select: { id: true, nome: true, condominio: true },
-        orderBy: { nome: 'asc' },
+        orderBy: { criadoEm: 'asc' },
       }),
     ])
 

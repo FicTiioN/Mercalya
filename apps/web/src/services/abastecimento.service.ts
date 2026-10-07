@@ -1,5 +1,6 @@
 import type { Abastecimento, ID } from '@/models'
 import { chamarApi, montarQuery } from './chamada'
+import { AppSession } from './sessao'
 
 export interface ProdutoDisponivel {
   produtoId: ID
@@ -40,11 +41,13 @@ export const AbastecimentoService = {
     destinoNome: string
     itensNaLoja: number
   }> {
-    return chamarApi('/abastecimento/origem-destino')
+    return chamarApi(`/abastecimento/origem-destino${montarQuery({ lojaId: AppSession.lojaAtualId() })}`)
   },
 
   async produtosDisponiveis(busca = ''): Promise<ProdutoDisponivel[]> {
-    return chamarApi(`/abastecimento/disponiveis${montarQuery({ busca })}`)
+    return chamarApi(
+      `/abastecimento/disponiveis${montarQuery({ busca, lojaId: AppSession.lojaAtualId() })}`,
+    )
   },
 
   async recentes(limite = 5): Promise<AbastecimentoListItem[]> {
@@ -52,6 +55,9 @@ export const AbastecimentoService = {
   },
 
   async confirmar(itens: ItemAbastecimentoEntrada[]): Promise<ResultadoAbastecimento> {
-    return chamarApi('/abastecimento/confirmar', { metodo: 'POST', corpo: { itens } })
+    return chamarApi('/abastecimento/confirmar', {
+      metodo: 'POST',
+      corpo: { itens, lojaId: AppSession.lojaAtualId() },
+    })
   },
 }

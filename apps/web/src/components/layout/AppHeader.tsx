@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, ChevronDown, CircleHelp, Menu, Search } from 'lucide-react'
+import { Bell, ChevronDown, CircleHelp, Menu, Search, Store } from 'lucide-react'
 import type { Notificacao } from '@/models'
-import { NotificacaoService } from '@/services'
+import { AppSession, NotificacaoService } from '@/services'
 import { useRecurso } from '@/lib/useRecurso'
+import { useLojaAtual } from '@/lib/useLojaAtual'
 import { cn } from '@/lib/cn'
 import { AjudaMenu } from './AjudaMenu'
 import { UsuarioMenu } from './UsuarioMenu'
@@ -41,6 +42,12 @@ export function AppHeader({
   const [painel, setPainel] = useState<PainelAberto>(null)
 
   const notificacoes = useRecurso(() => NotificacaoService.listar(), [])
+
+  // Com mais de uma loja, a loja em contexto fica visível no header — e o
+  // clique abre o menu da conta, onde se troca.
+  const lojaId = useLojaAtual()
+  const lojas = AppSession.lojasDisponiveis()
+  const lojaAtual = lojas.find((l) => l.id === lojaId)
 
   useEffect(() => {
     const aoTeclar = (e: KeyboardEvent) => {
@@ -125,6 +132,19 @@ export function AppHeader({
           </div>
         )}
       </div>
+
+      {lojas.length > 1 && lojaAtual && (
+        <button
+          type="button"
+          onClick={() => alternar('usuario')}
+          title="Trocar de loja"
+          className="relative z-30 hidden items-center gap-2 rounded-full border border-line bg-surface-2 px-3 py-1.5 text-label font-medium text-ink transition-colors hover:border-teal/40 md:inline-flex"
+        >
+          <Store className="h-4 w-4 text-teal" strokeWidth={1.75} />
+          <span className="max-w-[180px] truncate">{lojaAtual.nome}</span>
+          <ChevronDown className="h-3.5 w-3.5 text-muted" strokeWidth={1.75} />
+        </button>
+      )}
 
       <div className="ml-auto flex items-center gap-2">
         {painel !== null && (

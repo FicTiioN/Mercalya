@@ -255,7 +255,15 @@ export interface Loja {
   id: ID
   nome: string
   condominio: string
-  localId: ID
+  /** Inativa: fora do seletor e das operações; o histórico continua legível. */
+  ativa: boolean
+  criadoEm: string
+}
+
+export interface EntradaLoja {
+  nome: string
+  condominio?: string
+  ativa?: boolean
 }
 
 export interface Usuario {
@@ -321,6 +329,9 @@ export interface ItemLojaView {
   produtoId: ID
   produtoNome: string
   produtoImagem: string
+  /** Código de barras — o que o leitor do totem lê. Vazio quando o produto não tem. */
+  ean: string
+  sku: string
   categoriaNome: string
   quantidade: number
   precoVenda: number
@@ -526,11 +537,21 @@ export interface Notificacao {
 /* Vendas                                                              */
 /* ------------------------------------------------------------------ */
 
-export type StatusVenda = 'concluida' | 'cancelada'
+/** `aberta` = aguardando pagamento; itens congelados, estoque ainda intacto. */
+export type StatusVenda = 'aberta' | 'concluida' | 'cancelada'
 
 export type FormaPagamentoVenda = 'pix' | 'dinheiro' | 'cartao-debito' | 'cartao-credito'
 
-export type StatusPagamento = 'aprovado' | 'pendente' | 'recusado'
+export type StatusPagamento =
+  | 'pendente'
+  | 'aprovado'
+  | 'recusado'
+  /** Abortado antes de concluir. */
+  | 'cancelado'
+  /** Devolvido depois de aprovado — a venda foi cancelada. */
+  | 'estornado'
+  /** Pendente além do prazo; a conciliação encerrou. */
+  | 'expirado'
 
 export interface ItemVenda {
   id: ID
@@ -544,11 +565,26 @@ export interface ItemVenda {
   total: number
 }
 
-export interface PagamentoVenda {
+/**
+ * Um pagamento tem ciclo de vida próprio: nasce pendente na maquininha, pode
+ * ser recusado e tentado de novo com outra forma. Uma venda pode ter vários.
+ */
+export interface Pagamento {
+  id: ID
   forma: FormaPagamentoVenda
-  valorPago: number
+  valor: number
   status: StatusPagamento
-  quando: string
+  parcelas: number
+  /** "manual" quando o operador registrou; o nome do adquirente quando veio de maquininha. */
+  provedor: string
+  autorizacao: string
+  nsu: string
+  bandeira: string
+  ultimosDigitos: string
+  motivoRecusa: string
+  criadoEm: string
+  /** Quando saiu de pendente para aprovado ou recusado. */
+  confirmadoEm: string | null
 }
 
 export interface Venda {
@@ -563,15 +599,64 @@ export interface Venda {
   desconto: number
   acrescimo: number
   total: number
-  pagamento: PagamentoVenda
+  pagamentos: Pagamento[]
   troco: number
   tipoVenda: string
   canal: string
   observacao: string
   status: StatusVenda
+  /** Quando o estoque foi debitado — só em venda concluída. */
+  concluidaEm: string | null
   registradoEm: string
   atualizadoEm: string
   idInterno: string
+}
+
+/** O carrinho: o que abre uma venda. Preço não vai — a API lê da loja. */
+export interface AberturaVenda {
+  /** Sem loja, a API usa a primeira ativa da empresa. */
+  lojaId?: ID
+  clienteId?: ID
+  clienteNome?: string
+  itens: Array<{ produtoId: ID; quantidade: number }>
+  desconto?: number
+  observacao?: string
+  /** Reenviar com a mesma chave devolve a mesma venda, sem segunda baixa. */
+  chaveIdempotencia?: string
+}
+
+/** Venda já paga em uma chamada — o caminho do balcão. */
+export interface NovaVenda extends AberturaVenda {
+  pagamentos: Array<{ forma: FormaPagamentoVenda; valor: number; parcelas?: number }>
+}
+
+/**
+ * Um pagamento adicionado a uma venda aberta. `provedor` ausente ou "manual"
+ * = o operador recebeu; qualquer outro nome aciona a maquininha e o pagamento
+ * nasce pendente.
+ */
+export interface NovoPagamento {
+  forma: FormaPagamentoVenda
+  valor: number
+  parcelas?: number
+  provedor?: string
+  /** Repetir a chave devolve o mesmo pagamento; a maquininha não é acionada de novo. */
+  chaveIdempotencia?: string
+}
+
+/** O que o totem recebe a cada polling: o pagamento e a venda como estão agora. */
+export interface SituacaoPagamentoVenda {
+  pagamento: Pagamento
+  venda: VendaListItem
+}
+
+export interface ResumoConciliacao {
+  verificados: number
+  aprovados: number
+  recusados: number
+  expirados: number
+  abandonadas: number
+  erros: number
 }
 
 export interface VendaListItem extends Venda {

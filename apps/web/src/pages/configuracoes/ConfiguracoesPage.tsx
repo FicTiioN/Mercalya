@@ -1,14 +1,23 @@
 import { useState } from 'react'
-import { Bell, Building2, Database, Palette, ShieldCheck, User } from 'lucide-react'
-import { AppSession } from '@/services'
+import {
+  Bell,
+  Database,
+  ExternalLink,
+  MonitorSmartphone,
+  Palette,
+  ShieldCheck,
+  User,
+} from 'lucide-react'
+import { AppSession, PROVEDOR_PAGAMENTO } from '@/services'
 import { PageContainer } from '@/components/layout/AppShell'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { SectionCard } from '@/components/ui/Card'
 import { CatalogoSection } from './CatalogoSection'
+import { LojasSection } from './LojasSection'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { Alert } from '@/components/ui/Feedback'
-import { FormField, Input, Select, Toggle } from '@/components/ui/Form'
+import { FormField, Input, Toggle } from '@/components/ui/Form'
 import { Avatar } from '@/components/ui/Misc'
 import { useToast } from '@/components/ui/toast-context'
 
@@ -30,28 +39,41 @@ export function ConfiguracoesPage() {
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <SectionCard
-          icone={<Building2 className="h-5 w-5" strokeWidth={1.75} />}
-          titulo="Loja e condomínio"
-          classeCorpo="grid grid-cols-1 gap-5 pt-5"
-        >
-          <FormField label="Condomínio" htmlFor="condominio">
-            <Input id="condominio" value={AppSession.condominioAtual()} readOnly disabled />
-          </FormField>
-          <FormField label="Loja" htmlFor="loja">
-            <Input id="loja" value={AppSession.lojaAtual()} readOnly disabled />
-          </FormField>
-          <FormField label="Fuso horário" htmlFor="fuso">
-            <Select
-              id="fuso"
-              value="america-sao_paulo"
-              onChange={() => undefined}
-              opcoes={[{ valor: 'america-sao_paulo', label: 'America/São_Paulo (GMT-3)' }]}
-            />
-          </FormField>
-        </SectionCard>
+        <LojasSection />
 
         <CatalogoSection />
+
+        <SectionCard
+          icone={<MonitorSmartphone className="h-5 w-5" strokeWidth={1.75} />}
+          titulo="Autoatendimento"
+          descricao="O totem em que o cliente passa os produtos e paga sozinho."
+          classeCorpo="pt-5"
+        >
+          <p className="text-body text-muted">
+            Roda com este mesmo login, em tela cheia e sem menu. Abra em uma aba própria no
+            dispositivo de autoatendimento — o leitor de código de barras funciona como
+            teclado, então basta passar o produto.
+          </p>
+          <div className="mt-4">
+            <Button
+              onClick={() => window.open('/totem', '_blank', 'noopener')}
+              iconeEsquerda={<ExternalLink className="h-4 w-4" strokeWidth={1.75} />}
+            >
+              Abrir totem
+            </Button>
+          </div>
+          <p className="mt-4 text-caption text-muted">
+            Maquininha em uso: <strong className="text-ink">{PROVEDOR_PAGAMENTO}</strong>
+            {PROVEDOR_PAGAMENTO === 'simulado' && (
+              <>
+                {' '}
+                — não existe fisicamente; a própria tela do totem tem os botões para aprovar
+                ou recusar o pagamento. Troca-se por um adquirente real no ambiente
+                (<code>VITE_PROVEDOR_PAGAMENTO</code>), sem mudar o totem.
+              </>
+            )}
+          </p>
+        </SectionCard>
 
         <SectionCard
           icone={<User className="h-5 w-5" strokeWidth={1.75} />}

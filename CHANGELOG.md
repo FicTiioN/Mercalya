@@ -1,0 +1,48 @@
+# Changelog
+
+Todas as mudanças relevantes do Mercalya ficam registradas aqui. O formato segue o
+[Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e as versões seguem o
+[Versionamento Semântico](https://semver.org/lang/pt-BR/).
+
+Cada PR que muda comportamento acrescenta uma linha em **Não lançado**. Na hora de criar
+a tag, a seção vira a versão nova.
+
+## [Não lançado]
+
+### Adicionado
+
+- `docs/PLANO_PRODUCAO.md`: o plano até a produção, com o que o Claude e o Leonardo fazem
+  em cada dia da Fase 0.
+- `CHANGELOG.md`.
+
+### Alterado
+
+- Versão do Node fixada em 20: `.nvmrc` e `engines` no `package.json` da raiz.
+
+## [0.1.0] — a publicar (tag criada no merge da `feat/pdv-autoatendimento` na `main`)
+
+Primeira versão consolidada. O sistema inteiro roda sobre a API e o Postgres, sem mocks.
+
+### Adicionado
+
+- **Monorepo** com `apps/web` (React 18 + Vite + Tailwind), `apps/api` (NestJS 10 +
+  Prisma 5 + PostgreSQL 16) e `packages/domain` (tipos compartilhados).
+- **Autenticação** JWT com guard global que nega por padrão e tenant vindo do token.
+- **Catálogo:** produtos, categorias, marcas e fornecedores, com busca sem acento e preço
+  por loja.
+- **Compras:** confirmação atômica que cria lote, credita o estoque, recalcula o custo
+  médio e grava a movimentação `ENTRADA`.
+- **Estoque:** central e loja, saldos por lote, consumo FEFO, abastecimento, perdas,
+  ajustes e devolução ao central.
+- **Painel, Início e Notificações** com indicadores reais e marca de "lida" por usuário.
+- **PDV fase 1:** `Pagamento` como entidade própria; registro e cancelamento de venda
+  com devolução aos mesmos lotes; testes de integração contra Postgres.
+- **PDV fase 2:** porta `ProvedorPagamento`, maquininha simulada, estorno automático
+  quando falta estoque e conciliação de pagamentos pendentes a cada minuto.
+- **PDV fase 3:** tela do totem de autoatendimento (`/totem`).
+- **Multi-loja:** gestão de lojas em Configurações e loja em contexto no menu da conta.
+- Health check de liveness (`/api/health`) e readiness (`/api/health/ready`).
+- 41 testes de integração cobrindo as invariantes do núcleo.
+
+[Não lançado]: https://github.com/FicTiioN/Mercalya/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/FicTiioN/Mercalya/releases/tag/v0.1.0

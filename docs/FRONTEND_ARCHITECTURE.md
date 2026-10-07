@@ -219,12 +219,10 @@ criados pela tela ficam com o padrão calculado em `garantirConfiguracao`.
 `/login` fica **fora do AppShell** — sem sidebar nem header. Painel escuro da marca à
 esquerda (some abaixo de `lg`) e o formulário à direita.
 
-Não há autenticação real nesta fase, então o login **não bloqueia o acesso**: `/` continua
-abrindo o Início e recarregar não devolve à tela de entrada. Forçar login a cada reload só
-adicionaria atrito a uma demonstração sem segurança para proteger. O que a tela faz de real:
-valida os campos, exercita o estado de envio do botão e é o destino do **Sair** do menu da
-conta — que até então não levava a lugar nenhum. Quando a API entrar, é aqui que o guard de
-rota se encaixa.
+A autenticação é real: `RotaProtegida` confirma o token com a API antes de montar o shell, e
+distingue **sem sessão** (vai para o login) de **API fora do ar** (mostra o erro e oferece
+tentar de novo). O token fica no `localStorage`; a sessão, em memória, só depois de
+confirmada.
 
 ### Vendas nesta fase
 
@@ -232,10 +230,66 @@ rota se encaixa.
 **listagem** (`/vendas`) e **detalhe** (`/vendas/:id`), ambas construídas a partir das
 referências `listagem-venda.png` e `detalhe-venda.png`.
 
-As vendas são um **registro histórico**: elas não debitam estoque. O saldo atual já é o
-resultado delas — o PDV que movimenta estoque em tempo real chega junto com a API. Os itens,
-porém, referenciam produtos reais e usam o preço praticado na loja, então nada é inventado
-fora do catálogo. Os KPIs da listagem respeitam os mesmos filtros da tabela.
+Uma venda tem **N pagamentos**, cada um com ciclo de vida próprio (pendente, aprovado,
+recusado, cancelado, estornado, expirado). A listagem mostra o pagamento principal — o
+aprovado de maior valor — e um "+N" quando há outros; o detalhe lista todos. Os KPIs da
+listagem respeitam os mesmos filtros da tabela.
+
+### Loja em contexto
+
+A empresa tem N lojas e quase toda tela opera sobre uma. A escolha vive em `AppSession`
+(`services/sessao.ts`), persistida no `localStorage` por empresa — é preferência do
+**dispositivo**, não da conta: o totem da loja B precisa acordar na loja B mesmo entrando
+com o login que o escritório usa na A. A escolha é validada contra as lojas ativas da
+sessão; loja desativada ou desconhecida cai para a primeira (a mais antiga, o mesmo padrão
+da API).
+
+Os **services** injetam `lojaId` sozinhos (`LojaService`, `AbastecimentoService`,
+`EstoqueService.sugestoes`, `ProdutoService`) — nenhuma tela precisou aprender a passar o
+id. Trocar de loja (menu da conta, ou o botão com o nome da loja que aparece no header quando
+há mais de uma) dispara `useLojaAtual`, e o `AppShell` remonta a página (`key` com o id):
+cada tela recarrega os dados da loja nova sem saber que existe um seletor.
+
+A gestão das lojas fica em Configurações → Lojas: criar (a prateleira nasce junto),
+renomear, desativar. Depois de qualquer alteração a sessão é recarregada, e o seletor
+reflete a lista nova sem sair e entrar.
+
+### Totem de autoatendimento
+
+`/totem` é a tela em que o **cliente** passa os produtos e paga sozinho. Vive fora do
+`AppShell` como o login: sem menu, sem header, sem atalhos — quem está na frente dela não é o
+operador. Exige sessão (o dispositivo entra com a conta da loja), mas **não ganha item na
+sidebar** (regra 4): abre-se por Configurações → Autoatendimento, em aba própria, ou pela
+URL.
+
+Decisões que moldam a tela:
+
+- **O catálogo da loja fica em memória.** `GET /loja` é chamado uma vez (e a cada volta ao
+  início); o código de barras resolve localmente. Cada leitura precisa responder no
+  instante, e uma ida à API por item seria o gargalo do caixa. Por isso a API da loja passou
+  a devolver `ean` e `sku`.
+- **O leitor é um teclado.** Manda o código e Enter. O campo de busca fica sempre focado
+  para recebê-lo, e o cliente pode digitar o nome quando o produto não tem código. Na tela
+  inicial, a primeira tecla já começa a compra — o caractere vira o começo da busca em vez de
+  se perder.
+- **A venda só é aberta quando o cliente escolhe a forma de pagamento.** Até ali o carrinho
+  é memória da tela: desistir não deixa rastro no banco. Voltar ao carrinho depois de aberta
+  cancela a venda (preços congelados nela) e uma nova nasce ao pagar.
+- **Sem dinheiro.** Sem operador, não há quem dê troco: crédito, débito e Pix, todos pela
+  maquininha. O balcão (`POST /vendas`) continua aceitando dinheiro.
+- **Polling, não webhook.** A cada 1,5s o totem pergunta `GET /vendas/:id/pagamentos/:pid`;
+  a API consulta o provedor e conclui a venda quando coberta. Dois minutos sem resposta
+  abortam. Se a tela cair no meio, a conciliação do servidor termina o serviço.
+- **O painel do simulador só existe com a maquininha simulada** (`VITE_PROVEDOR_PAGAMENTO`).
+  É um bloco tracejado, âmbar, que diz o que é: "aproximar cartão" e "emissor recusa" fazem o
+  que o cliente faria no terminal. Numa instalação real ele não aparece.
+- Tudo é grande e para o dedo: alvos de 48px ou mais, nenhuma ação depende de hover,
+  resultado volta ao início sozinho em 12s. Um botão discreto põe o navegador em tela cheia.
+
+O estado é uma máquina em `useTotem`: `inicio → carrinho → pagamento → aguardando →
+aprovado | recusado | falha`. `recusado` mantém a venda aberta para outra forma; `falha` é a
+venda cancelada pelo sistema (aprovou mas faltou estoque — a API já estornou), e a tela diz
+isso.
 
 ### Conceitos deliberadamente ausentes
 
@@ -343,6 +397,7 @@ o mesmo estado tenha sempre a mesma cor em qualquer tela.
 | `/login` | entrada no sistema (fora do App Shell) |
 | `/vendas` · `/vendas/:id` | listagem de vendas e detalhe da venda |
 | `/configuracoes` | preferências da operação |
+| `/totem` | autoatendimento do cliente (fora do App Shell; exige sessão) |
 
 `/` redireciona para `/inicio`; qualquer outra rota cai em `NaoEncontradaPage`.
 

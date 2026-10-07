@@ -2,6 +2,9 @@
   "name": "mercalya",
   "private": true,
   "version": "2.0.0",
+  "engines": {
+    "node": ">=20 <21"
+  },
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -14,6 +17,7 @@
     "preview": "npm run preview --workspace @mercalya/web",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "db:migrate": "npm run prisma:migrate --workspace @mercalya/api",

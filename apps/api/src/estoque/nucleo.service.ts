@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, NotFoundException } from '@nestjs/common'
 import { Prisma, StatusMovimentacao, TipoMovimentacao } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import { numero } from '../comum/numero'
@@ -235,13 +235,15 @@ export class NucleoEstoqueService {
     chave: string,
     prefixo: string,
     base: number,
+    /** Zeros à esquerda (VDA-001095). Sem valor, o número vai como está. */
+    largura = 0,
   ): Promise<string> {
     const sequencia = await tx.sequencia.upsert({
       where: { empresaId_chave: { empresaId, chave } },
       create: { empresaId, chave, valor: base + 1 },
       update: { valor: { increment: 1 } },
     })
-    return `${prefixo}-${sequencia.valor}`
+    return `${prefixo}-${String(sequencia.valor).padStart(largura, '0')}`
   }
 
   /** Total geral da empresa — usado para provar que transferência não cria nem destrói. */
@@ -257,6 +259,15 @@ export class NucleoEstoqueService {
   async localCentral(tx: Transacao, empresaId: string) {
     const local = await tx.localEstoque.findFirst({ where: { empresaId, tipo: 'CENTRAL' } })
     if (!local) throw new Error('Empresa sem estoque central configurado.')
+    return local
+  }
+
+  /** Prateleira de uma loja — de onde a venda sai. */
+  async localDaLoja(tx: Transacao, empresaId: string, lojaId: string) {
+    const local = await tx.localEstoque.findFirst({
+      where: { empresaId, lojaId, tipo: 'LOJA' },
+    })
+    if (!local) throw new NotFoundException('Loja não encontrada.')
     return local
   }
 }

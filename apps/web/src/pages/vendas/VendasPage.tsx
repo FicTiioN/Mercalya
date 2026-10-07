@@ -12,7 +12,7 @@ import {
 } from 'lucide-react'
 import type { FormaPagamentoVenda, StatusVenda, VendaListItem } from '@/models'
 import { ROTULOS_PAGAMENTO, VendaService } from '@/services'
-import { VISUAL_PAGAMENTO } from './pagamento'
+import { pagamentoPrincipal, VISUAL_PAGAMENTO } from './pagamento'
 import { useDebounce, useRecurso } from '@/lib/useRecurso'
 import { cn } from '@/lib/cn'
 import { dataHora, moeda, numero } from '@/lib/format'
@@ -122,12 +122,16 @@ export function VendasPage() {
       cabecalho: 'Forma de pagamento',
       largura: '172px',
       render: (v) => {
-        const visual = VISUAL_PAGAMENTO[v.pagamento.forma]
+        const principal = pagamentoPrincipal(v)
+        if (!principal) return <span className="text-muted">—</span>
+        const visual = VISUAL_PAGAMENTO[principal.forma]
         const Icone = visual.icone
+        const outros = v.pagamentos.length - 1
         return (
           <span className="flex items-center gap-2 whitespace-nowrap text-ink">
             <Icone className={cn('h-4 w-4 shrink-0', visual.classe)} strokeWidth={1.75} />
-            {ROTULOS_PAGAMENTO[v.pagamento.forma]}
+            {ROTULOS_PAGAMENTO[principal.forma]}
+            {outros > 0 && <span className="text-caption text-muted">+{outros}</span>}
           </span>
         )
       },
