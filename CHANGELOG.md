@@ -19,6 +19,18 @@ a tag, a seção vira a versão nova.
 - Testes HTTP que montam a aplicação como o `main.ts` monta (`supertest`), com a
   configuração compartilhada em `src/configurar-app.ts`.
 
+- Imagens Docker de produção: `apps/api/Dockerfile` (multi-stage, aplica
+  `migrate deploy` ao subir, sem root, com healthcheck) e `apps/web/Dockerfile` (nginx com
+  fallback de SPA e cache longo para `/assets`).
+- `docker-compose.prod.yml` para ensaiar a produção localmente, com banco próprio.
+- Scripts `start:prod` e `db:migrate:deploy` na API, para hospedagens sem Docker.
+
+### Alterado
+
+- `prisma` passou para `dependencies`: o `migrate deploy` roda dentro do container.
+- O build de produção do frontend falha sem `VITE_API_URL`. Antes, ele apontava em
+  silêncio para `http://localhost:3000/api`.
+
 ### Segurança
 
 - Limite de tentativas de login: 5 por minuto para a mesma conta a partir do mesmo IP

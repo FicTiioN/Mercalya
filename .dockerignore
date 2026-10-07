@@ -1,0 +1,23 @@
+# O contexto do build e a raiz do monorepo. Tudo o que nao entra na imagem
+# fica de fora aqui: menos bytes enviados ao Docker e nenhum segredo copiado.
+
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+**/coverage
+
+# Segredos locais nunca entram na imagem: em producao, as variaveis vem do
+# painel da hospedagem.
+**/.env
+**/.env.*
+!**/.env.example
+
+.git
+.github
+.claude
+references
+docs
+*.md
+**/test
+docker-compose*.yml
+**/Dockerfile
