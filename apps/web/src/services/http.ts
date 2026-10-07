@@ -5,7 +5,10 @@
  * domínio. O que persiste aqui é só o token da sessão.
  */
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api'
+// O padrão local só existe em desenvolvimento: no build de produção o
+// `vite.config.ts` exige VITE_API_URL, e este literal nem entra no bundle.
+const BASE_URL =
+  import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? 'http://localhost:3000/api' : '')
 
 /** Token em memória. Quem persiste é o AuthService — componente não toca nisso. */
 let token: string | null = null

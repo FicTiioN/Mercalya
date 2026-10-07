@@ -100,6 +100,24 @@ contábil — que antes eram verificadas à mão.
 > Esta máquina já roda um **Postgres nativo na 5432**, então o `docker-compose`
 > publica a **5433**. As duas URLs estão prontas em `apps/api/.env.example`.
 
+## Imagens de produção
+
+| Imagem | Dockerfile | Observação |
+|---|---|---|
+| API | `apps/api/Dockerfile` | Aplica `prisma migrate deploy` ao subir, roda como usuário sem root, fuso `America/Sao_Paulo` |
+| Frontend | `apps/web/Dockerfile` | nginx servindo o build; `VITE_API_URL` entra como `--build-arg` e é obrigatória |
+
+O contexto do build é sempre a **raiz** do monorepo. Para ensaiar a produção localmente,
+com banco próprio e sem tocar no de desenvolvimento:
+
+```bash
+JWT_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))") \
+  docker compose -f docker-compose.prod.yml up --build
+```
+
+Frontend em <http://localhost:8080> e API em <http://localhost:3001/api>. O banco começa
+vazio; o cabeçalho do `docker-compose.prod.yml` mostra como criar uma conta.
+
 ## Pendências conhecidas do frontend
 
 - Campos sem UI: `pontoCompra`, `estoqueMaximoCentral`, controle de validade, `estoqueIdeal`.

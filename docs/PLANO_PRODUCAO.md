@@ -66,14 +66,14 @@ Legenda: 🤖 Claude · 👤 Leonardo
 - [x] 🤖 `@nestjs/throttler`: 5 tentativas de login por minuto (IP + e-mail) e limite geral
 - [x] 🤖 `helmet`, limite de corpo (1 MB), `trust proxy`
 - [x] 🤖 Testes: 6ª tentativa retorna `429`; cabeçalhos de segurança presentes (7 testes novos, 62 no total)
-- [ ] 👤 Revisar o PR
+- [x] 👤 Revisar o PR
 
 ### Dia 4 · qua 14/out — Empacotar a aplicação
 
-- [ ] 🤖 `apps/api/Dockerfile` multi-stage + `.dockerignore`
-- [ ] 🤖 Entrada com `prisma migrate deploy && node dist/main.js`
-- [ ] 🤖 Build do frontend com `VITE_API_URL` por variável
-- [ ] 🤖 `docker-compose.prod.yml` para validar localmente
+- [x] 🤖 `apps/api/Dockerfile` multi-stage + `.dockerignore`
+- [x] 🤖 Entrada com `prisma migrate deploy && node dist/main.js`
+- [x] 🤖 Build do frontend com `VITE_API_URL` por variável
+- [x] 🤖 `docker-compose.prod.yml` para validar localmente
 - [ ] 👤 Deixar o Docker Desktop ligado e revisar o PR
 
 **Pronto quando:** a imagem sobe, aplica as migrações e `/api/health/ready` responde 200.

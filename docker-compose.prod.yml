@@ -1,0 +1,65 @@
+# Ensaio local do ambiente de producao: as MESMAS imagens que vao para a
+# hospedagem, com um Postgres proprio. Nao e o banco de desenvolvimento
+# (docker-compose.yml) e nao toca nos dados dele.
+#
+#   JWT_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))") \
+#     docker compose -f docker-compose.prod.yml up --build
+#
+# Frontend: http://localhost:8080 · API: http://localhost:3001/api
+#
+# O banco comeca vazio. Para criar uma conta (o banco esta em localhost, entao
+# a trava do seed libera):
+#   DATABASE_URL="postgresql://mercalya:mercalya@localhost:5434/mercalya" \
+#     npm run db:nova-conta -- --nome "Ensaio" --email ensaio@mercalya.com.br --senha ...
+
+name: mercalya-ensaio-producao
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: mercalya
+      POSTGRES_PASSWORD: mercalya
+      POSTGRES_DB: mercalya
+    ports:
+      - "5434:5432"
+    volumes:
+      - banco-ensaio:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mercalya -d mercalya"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://mercalya:mercalya@postgres:5432/mercalya?schema=public
+      # Obrigatorio: sem ele o compose nem sobe. Nunca versione um segredo real.
+      JWT_SECRET: ${JWT_SECRET:?defina JWT_SECRET (64 caracteres hex) antes de subir}
+      CORS_ORIGIN: http://localhost:8080
+      # Aqui o navegador fala direto com a API, sem proxy no meio.
+      TRUST_PROXY: "0"
+      PORT: "3000"
+    ports:
+      - "3001:3000"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_URL: http://localhost:3001/api
+        VITE_PROVEDOR_PAGAMENTO: simulado
+    depends_on:
+      - api
+    ports:
+      - "8080:8080"
+
+volumes:
+  banco-ensaio:
