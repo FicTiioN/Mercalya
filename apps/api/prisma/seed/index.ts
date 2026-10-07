@@ -16,6 +16,7 @@ import {
 } from '@prisma/client'
 import { hashSync } from 'bcryptjs'
 import { textoDeBusca, textoDeBuscaFornecedor } from '../../src/comum/texto'
+import { garantirBancoDeDesenvolvimento } from '../guarda-ambiente'
 import {
   ADMIN,
   categorias,
@@ -75,6 +76,9 @@ async function limpar() {
 }
 
 async function main() {
+  // Antes de qualquer escrita: o passo seguinte apaga todas as tabelas.
+  garantirBancoDeDesenvolvimento('db:seed')
+
   console.log('Limpando a base (seed de demonstração recria tudo)...')
   await limpar()
 

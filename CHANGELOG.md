@@ -11,19 +11,27 @@ a tag, a seção vira a versão nova.
 
 ### Adicionado
 
-- `docs/PLANO_PRODUCAO.md`: o plano até a produção, com o que o Claude e o Leonardo fazem
-  em cada dia da Fase 0.
-- `CHANGELOG.md`.
+- Validação das variáveis de ambiente na subida da API (`src/config/ambiente.ts`). Em
+  produção, a API não sobe com `JWT_SECRET` de exemplo ou com menos de 32 caracteres, nem
+  sem `CORS_ORIGIN`. Em desenvolvimento, os mesmos problemas viram aviso. Todos os erros
+  aparecem de uma vez, sem expor valores.
+- `NODE_ENV` e `PERMITIR_SEED` documentados no `.env.example`.
 
-### Alterado
+### Segurança
 
-- Versão do Node fixada em 20: `.nvmrc` e `engines` no `package.json` da raiz.
+- `db:seed` e `db:nova-conta` recusam rodar com `NODE_ENV=production` ou com banco fora
+  de `localhost`, a menos que `PERMITIR_SEED=sim` seja informado no próprio comando. Antes,
+  o seed apagava todas as tabelas de qualquer banco apontado pelo `DATABASE_URL`.
 
-## [0.1.0] — a publicar (tag criada no merge da `feat/pdv-autoatendimento` na `main`)
+## [0.1.0] — 2026-10-07
 
 Primeira versão consolidada. O sistema inteiro roda sobre a API e o Postgres, sem mocks.
 
 ### Adicionado
+
+- `docs/PLANO_PRODUCAO.md`: o plano até a produção, com o que o Claude e o Leonardo fazem
+  em cada dia da Fase 0.
+- `CHANGELOG.md` e versão do Node fixada em 20 (`.nvmrc` e `engines`).
 
 - **Monorepo** com `apps/web` (React 18 + Vite + Tailwind), `apps/api` (NestJS 10 +
   Prisma 5 + PostgreSQL 16) e `packages/domain` (tipos compartilhados).
