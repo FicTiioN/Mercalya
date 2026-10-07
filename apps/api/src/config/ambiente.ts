@@ -79,6 +79,16 @@ export function verificarAmbiente(env: Variaveis): ResultadoAmbiente {
     erros.push(`PORT="${porta}" não é uma porta válida (1 a 65535).`)
   }
 
+  const trustProxy = texto(env.TRUST_PROXY)
+  if (trustProxy && !/^\d+$/.test(trustProxy)) {
+    erros.push(`TRUST_PROXY="${trustProxy}" precisa ser o número de proxies (0, 1, 2...).`)
+  } else if (producao && !trustProxy) {
+    // Aviso, não erro: há hospedagem sem proxy na frente. Mas, se houver um e
+    // ninguém disser, todo cliente parece vir do mesmo IP e o limite de login
+    // vira global.
+    avisos.push('TRUST_PROXY não definido: atrás de balanceador, use 1.')
+  }
+
   return { ambiente: ambiente ?? 'development', erros, avisos }
 }
 

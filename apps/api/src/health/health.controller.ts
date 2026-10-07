@@ -1,9 +1,13 @@
 import { Controller, Get, HttpCode, HttpStatus, Res } from '@nestjs/common'
+import { SkipThrottle } from '@nestjs/throttler'
 import type { Response } from 'express'
 import { PrismaService } from '../prisma/prisma.service'
 import { Publico } from '../auth/decorators'
 
 @Publico()
+// O balanceador e o monitor consultam o tempo todo; contar isso no limite
+// por IP faria a hospedagem achar que a API caiu.
+@SkipThrottle()
 @Controller('health')
 export class HealthController {
   constructor(private readonly prisma: PrismaService) {}

@@ -8,6 +8,7 @@ const valido = {
   DATABASE_URL: BANCO,
   JWT_SECRET: SEGREDO_FORTE,
   CORS_ORIGIN: 'https://app.mercalya.com.br',
+  TRUST_PROXY: '1',
 }
 
 describe('Validação das variáveis de ambiente', () => {
@@ -70,6 +71,18 @@ describe('Validação das variáveis de ambiente', () => {
       expect(verificarAmbiente({ ...valido, PORT }).erros).toHaveLength(1)
     }
     expect(verificarAmbiente({ ...valido, PORT: '3000' }).erros).toEqual([])
+  })
+
+  it('TRUST_PROXY: número de proxies; em produção, ausente vira aviso', () => {
+    expect(verificarAmbiente({ ...valido, TRUST_PROXY: 'true' }).erros).toEqual([
+      expect.stringMatching(/TRUST_PROXY/),
+    ])
+    const semProxy = { ...valido, TRUST_PROXY: undefined }
+    expect(verificarAmbiente(semProxy)).toMatchObject({ erros: [], avisos: [] })
+    expect(verificarAmbiente({ ...semProxy, NODE_ENV: 'production' })).toMatchObject({
+      erros: [],
+      avisos: [expect.stringMatching(/TRUST_PROXY/)],
+    })
   })
 
   it('lança com todos os problemas de uma vez, sem expor segredos', () => {

@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/commo
 import { AuthService } from './auth.service'
 import { LoginDto } from './dto/login.dto'
 import { Publico, UsuarioAtual } from './decorators'
+import { LimiteDeLogin } from '../seguranca/limite-requisicoes'
 import type { UsuarioRequisicao } from './tipos'
 
 @Controller('auth')
@@ -9,6 +10,7 @@ export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   @Publico()
+  @LimiteDeLogin()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   login(@Body() dto: LoginDto) {
